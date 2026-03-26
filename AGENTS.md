@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Branch policy
+
+Before making any code, documentation, configuration, or other repository change, you must first create and switch to a new branch related to that change.
+
+Rules:
+- do not start implementation, editing, committing, or pushing on the current branch before creating the new branch
+- branch names should be concise, descriptive, and related to the task
+- prefer one logical change per branch
+- if the user explicitly asks to work on a specific existing branch, follow the user's instruction
+
 ## Commit policy
 
 You must follow this commit policy for every git commit.
