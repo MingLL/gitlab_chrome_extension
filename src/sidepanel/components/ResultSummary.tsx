@@ -11,6 +11,7 @@ type ResultSummaryProps = {
 };
 
 const COPY_FEEDBACK_MS = 1500;
+const EMPTY_VALUE = '尚未加载';
 
 type CopyFieldKey = 'url' | 'branch' | 'hash';
 
@@ -49,16 +50,16 @@ export function ResultSummary({
     <section className="panel-section" aria-labelledby="result-summary-title">
       <div className="panel-section__header">
         <h2 className="panel-section__title" id="result-summary-title">
-          Result Summary
+          结果汇总
         </h2>
-        <p className="panel-section__description">Copy the selected project URL, branch, or latest commit hash.</p>
+        <p className="panel-section__description">复制当前仓库链接、分支和最新提交 hash。</p>
       </div>
 
       <dl className="summary-list">
         <div>
-          <dt>Project web URL</dt>
+          <dt>仓库链接</dt>
           <dd className="summary-list__value-row">
-            <span>{projectWebUrl || 'Not loaded yet'}</span>
+            <span>{projectWebUrl || EMPTY_VALUE}</span>
             <button
               type="button"
               className="button"
@@ -67,14 +68,14 @@ export function ResultSummary({
                 void handleCopy('url', projectWebUrl);
               }}
             >
-              {copiedField === 'url' ? 'Copied' : 'Copy URL'}
+              {copiedField === 'url' ? '已复制' : '复制链接'}
             </button>
           </dd>
         </div>
         <div>
-          <dt>Selected branch</dt>
+          <dt>分支信息</dt>
           <dd className="summary-list__value-row">
-            <span>{selectedBranchName || 'Not loaded yet'}</span>
+            <span>{selectedBranchName || EMPTY_VALUE}</span>
             <button
               type="button"
               className="button"
@@ -83,23 +84,23 @@ export function ResultSummary({
                 void handleCopy('branch', selectedBranchName);
               }}
             >
-              {copiedField === 'branch' ? 'Copied' : 'Copy Branch'}
+              {copiedField === 'branch' ? '已复制' : '复制分支'}
             </button>
           </dd>
         </div>
         <div>
-          <dt>Latest commit hash</dt>
+          <dt>Hash 信息</dt>
           <dd className="summary-list__value-row">
             <span>{latestCommitHash}</span>
             <button
               type="button"
               className="button"
-              disabled={latestCommitHash === 'Not loaded yet'}
+              disabled={latestCommitHash === EMPTY_VALUE}
               onClick={() => {
                 void handleCopy('hash', latestCommitHash);
               }}
             >
-              {copiedField === 'hash' ? 'Copied' : 'Copy Hash'}
+              {copiedField === 'hash' ? '已复制' : '复制 Hash'}
             </button>
           </dd>
         </div>

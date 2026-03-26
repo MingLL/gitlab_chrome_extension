@@ -39,7 +39,7 @@ export function groupProjects(
 
   if (recentOptions.length > 0) {
     groups.push({
-      label: 'Recent',
+      label: '最近使用',
       options: recentOptions
     });
   }
@@ -55,7 +55,7 @@ export function groupProjects(
 
   if (allProjectOptions.length > 0) {
     groups.push({
-      label: 'All Projects',
+      label: '全部项目',
       options: allProjectOptions
     });
   }

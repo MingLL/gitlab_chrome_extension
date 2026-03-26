@@ -15,13 +15,13 @@ export function ProjectSelect({ groups, value, disabled, onChange, statusMessage
     <section className="panel-section" aria-labelledby="project-title">
       <div className="panel-section__header">
         <h2 className="panel-section__title" id="project-title">
-          Project
+          仓库
         </h2>
-        <p className="panel-section__description">Choose a project from the connected GitLab instance.</p>
+        <p className="panel-section__description">从当前 GitLab 实例中选择仓库。</p>
       </div>
 
       <div className="field">
-        <label htmlFor="project-select">Project</label>
+        <label htmlFor="project-select">仓库</label>
         <select
           id="project-select"
           name="project"
@@ -29,7 +29,7 @@ export function ProjectSelect({ groups, value, disabled, onChange, statusMessage
           value={value}
           onChange={(event) => onChange(event.target.value)}
         >
-          <option value="">{groups.length === 0 ? 'No projects loaded' : 'Select a project'}</option>
+          <option value="">{groups.length === 0 ? '暂无仓库' : '请选择仓库'}</option>
           {groups.map((group) => (
             <optgroup key={group.label} label={group.label}>
               {group.options.map((project) => (

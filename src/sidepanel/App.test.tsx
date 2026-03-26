@@ -67,9 +67,9 @@ function mockGitLabConnectSequence(input?: {
 async function connectApp() {
   render(<App />);
 
-  await userEvent.type(screen.getByLabelText(/gitlab base url/i), 'https://gitlab.example.com');
+  await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'https://gitlab.example.com');
   await userEvent.type(screen.getByLabelText(/token/i), 'secret');
-  await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+  await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
   expect(await screen.findByDisplayValue(/group\/alpha/i)).toBeInTheDocument();
 }
@@ -193,12 +193,12 @@ describe('side panel app shell', () => {
   it('renders the stacked connection, project, branch, and latest commit sections', () => {
     render(<App />);
 
-    expect(screen.getByLabelText(/gitlab base url/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/gitlab 地址/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/token/i)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /project/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /branch/i })).toBeInTheDocument();
-    expect(screen.getByText(/^latest commit hash$/i)).toBeInTheDocument();
-    expect(screen.getByText('Not configured. Enter your GitLab base URL and token to connect.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '仓库' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '分支' })).toBeInTheDocument();
+    expect(screen.getByText('Hash 信息')).toBeInTheDocument();
+    expect(screen.getByText('尚未配置，请输入 GitLab 地址和 Token 后连接。')).toBeInTheDocument();
   });
 
   it('shows connecting and loading-project status messages while a connection is in flight', async () => {
@@ -217,19 +217,19 @@ describe('side panel app shell', () => {
 
     render(<App />);
 
-    await userEvent.type(screen.getByLabelText(/gitlab base url/i), 'https://gitlab.example.com');
+    await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'https://gitlab.example.com');
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
-    await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+    await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
-    expect(await screen.findByText('Connecting to GitLab...')).toBeInTheDocument();
-    expect(screen.getByText('Loading projects...')).toBeInTheDocument();
+    expect(await screen.findByText('正在连接 GitLab...')).toBeInTheDocument();
+    expect(screen.getByText('正在加载仓库...')).toBeInTheDocument();
 
     pendingProjectsResponse.resolve({
       ok: true,
       json: async () => [],
     });
 
-    expect(await screen.findByText('No accessible projects found for this account.')).toBeInTheDocument();
+    expect(await screen.findByText('当前账号下没有可访问的仓库。')).toBeInTheDocument();
   });
 
   it('shows a connection error when the GitLab token is invalid', async () => {
@@ -241,12 +241,12 @@ describe('side panel app shell', () => {
 
     render(<App />);
 
-    await userEvent.type(screen.getByLabelText(/gitlab base url/i), 'https://gitlab.example.com');
+    await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'https://gitlab.example.com');
     await userEvent.type(screen.getByLabelText(/token/i), 'bad-token');
-    await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+    await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
     expect(
-      await screen.findByText('Connection failed. GitLab request failed with status 401 for /user')
+      await screen.findByText('连接失败：GitLab request failed with status 401 for /user')
     ).toBeInTheDocument();
   });
 
@@ -256,11 +256,11 @@ describe('side panel app shell', () => {
 
     render(<App />);
 
-    await userEvent.type(screen.getByLabelText(/gitlab base url/i), 'gitlab.example.com');
+    await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'gitlab.example.com');
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
-    await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+    await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
-    expect(await screen.findByText('Connection failed. Invalid GitLab base URL.')).toBeInTheDocument();
+    expect(await screen.findByText('连接失败：GitLab 地址无效。')).toBeInTheDocument();
     expect(configStorage.requestHostPermission).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -289,11 +289,11 @@ describe('side panel app shell', () => {
 
     render(<App />);
 
-    await userEvent.type(screen.getByLabelText(/gitlab base url/i), 'https://gitlab.example.com');
+    await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'https://gitlab.example.com');
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
-    await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+    await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
-    expect(await screen.findByText('No accessible projects found for this account.')).toBeInTheDocument();
+    expect(await screen.findByText('当前账号下没有可访问的仓库。')).toBeInTheDocument();
     expect(callOrder[0]).toBe('permission');
     expect(callOrder[1]).toContain('fetch:https://gitlab.example.com/api/v4/user');
   });
@@ -305,11 +305,11 @@ describe('side panel app shell', () => {
 
     render(<App />);
 
-    await userEvent.type(screen.getByLabelText(/gitlab base url/i), 'https://gitlab.example.com');
+    await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'https://gitlab.example.com');
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
-    await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+    await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
-    expect(await screen.findByText('Connection failed. Host permission request was denied.')).toBeInTheDocument();
+    expect(await screen.findByText('连接失败：Host permission request was denied.')).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -330,11 +330,11 @@ describe('side panel app shell', () => {
 
     render(<App />);
 
-    await userEvent.type(screen.getByLabelText(/gitlab base url/i), 'https://gitlab.example.com');
+    await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'https://gitlab.example.com');
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
-    await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+    await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
-    expect(await screen.findByText('Current tab does not match the configured GitLab. Select a project manually.')).toBeInTheDocument();
+    expect(await screen.findByText('当前标签页与已配置的 GitLab 不匹配，请手动选择仓库。')).toBeInTheDocument();
   });
 
   it('restores the current-tab mismatch status after a manual project selection is cleared', async () => {
@@ -355,20 +355,20 @@ describe('side panel app shell', () => {
 
     render(<App />);
 
-    await userEvent.type(screen.getByLabelText(/gitlab base url/i), 'https://gitlab.example.com');
+    await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'https://gitlab.example.com');
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
-    await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+    await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
-    expect(await screen.findByText('Current tab does not match the configured GitLab. Select a project manually.')).toBeInTheDocument();
+    expect(await screen.findByText('当前标签页与已配置的 GitLab 不匹配，请手动选择仓库。')).toBeInTheDocument();
 
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: /^project$/i }), '1');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '仓库' }), '1');
 
     expect(await screen.findByDisplayValue('main')).toBeInTheDocument();
-    expect(screen.queryByText('Current tab does not match the configured GitLab. Select a project manually.')).not.toBeInTheDocument();
+    expect(screen.queryByText('当前标签页与已配置的 GitLab 不匹配，请手动选择仓库。')).not.toBeInTheDocument();
 
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: /^project$/i }), '');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '仓库' }), '');
 
-    expect(await screen.findByText('Current tab does not match the configured GitLab. Select a project manually.')).toBeInTheDocument();
+    expect(await screen.findByText('当前标签页与已配置的 GitLab 不匹配，请手动选择仓库。')).toBeInTheDocument();
   });
 
   it('shows loading-branches and no-branches statuses for a selected project with no branches', async () => {
@@ -405,22 +405,22 @@ describe('side panel app shell', () => {
 
     render(<App />);
 
-    await userEvent.type(screen.getByLabelText(/gitlab base url/i), 'https://gitlab.example.com');
+    await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'https://gitlab.example.com');
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
-    await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+    await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
-    expect(await screen.findByDisplayValue('Select a project')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('请选择仓库')).toBeInTheDocument();
 
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: /^project$/i }), '1');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '仓库' }), '1');
 
-    expect(await screen.findByText('Loading branches...')).toBeInTheDocument();
+    expect(await screen.findByText('正在加载分支...')).toBeInTheDocument();
 
     pendingBranchResponse.resolve({
       ok: true,
       json: async () => [],
     });
 
-    expect(await screen.findByText('Selected project has no branches.')).toBeInTheDocument();
+    expect(await screen.findByText('当前仓库下没有分支。')).toBeInTheDocument();
   });
 
   it('preselects the current tab project when the tab matches a loaded project', async () => {
@@ -447,9 +447,9 @@ describe('side panel app shell', () => {
 
     render(<App />);
 
-    await userEvent.type(screen.getByLabelText(/gitlab base url/i), 'https://gitlab.example.com');
+    await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'https://gitlab.example.com');
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
-    await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+    await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
     expect(await screen.findByDisplayValue(/group\/alpha/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue('main')).toBeInTheDocument();
@@ -481,10 +481,10 @@ describe('side panel app shell', () => {
 
     render(<App />);
 
-    await userEvent.type(screen.getByLabelText(/gitlab base url/i), 'https://gitlab.example.com');
+    await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'https://gitlab.example.com');
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
-    await userEvent.click(screen.getByRole('button', { name: /connect/i }));
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: /^project$/i }), '2');
+    await userEvent.click(screen.getByRole('button', { name: '连接' }));
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '仓库' }), '2');
 
     expect(saveRecentProjectsSpy).toHaveBeenCalledWith(
       expect.arrayContaining([
@@ -560,17 +560,17 @@ describe('side panel app shell', () => {
 
     render(<App />);
 
-    await userEvent.type(screen.getByLabelText(/gitlab base url/i), 'https://gitlab.example.com');
+    await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'https://gitlab.example.com');
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
-    await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+    await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
     expect(await screen.findByDisplayValue(/group\/alpha/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue('main')).toBeInTheDocument();
     expect(screen.getByText('abcdef123456')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+    await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
-    expect(await screen.findByText('Connection failed. Host permission request was denied.')).toBeInTheDocument();
+    expect(await screen.findByText('连接失败：Host permission request was denied.')).toBeInTheDocument();
     expect(screen.getByDisplayValue(/group\/alpha/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue('main')).toBeInTheDocument();
     expect(screen.getByText('abcdef123456')).toBeInTheDocument();
@@ -619,22 +619,22 @@ describe('side panel app shell', () => {
 
     render(<App />);
 
-    await userEvent.type(screen.getByLabelText(/gitlab base url/i), 'https://gitlab.example.com');
+    await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'https://gitlab.example.com');
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
-    await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+    await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
     expect(await screen.findByDisplayValue(/group\/alpha/i)).toBeInTheDocument();
     expect(saveConfigSpy).toHaveBeenCalledTimes(1);
     expect(saveConfigSpy).toHaveBeenLastCalledWith({ baseUrl: 'https://gitlab.example.com', token: 'secret' });
 
-    await userEvent.clear(screen.getByLabelText(/gitlab base url/i));
-    await userEvent.type(screen.getByLabelText(/gitlab base url/i), 'https://bad.example.com');
+    await userEvent.clear(screen.getByLabelText(/gitlab 地址/i));
+    await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'https://bad.example.com');
     await userEvent.clear(screen.getByLabelText(/token/i));
     await userEvent.type(screen.getByLabelText(/token/i), 'bad-token');
-    await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+    await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
     expect(
-      await screen.findByText('Connection failed. GitLab request failed with status 401 for /user')
+      await screen.findByText('连接失败：GitLab request failed with status 401 for /user')
     ).toBeInTheDocument();
     expect(saveConfigSpy).toHaveBeenCalledTimes(1);
     expect(saveConfigSpy).toHaveBeenLastCalledWith({ baseUrl: 'https://gitlab.example.com', token: 'secret' });
@@ -697,17 +697,17 @@ describe('side panel app shell', () => {
 
     render(<App />);
 
-    await userEvent.type(screen.getByLabelText(/gitlab base url/i), 'https://gitlab.example.com');
+    await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'https://gitlab.example.com');
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
-    await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+    await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
     expect(await screen.findByDisplayValue(/group\/alpha/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue('main')).toBeInTheDocument();
     expect(screen.getByText('abcdef123456')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+    await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
-    expect(await screen.findByText('Connection failed. Branch lookup failed.')).toBeInTheDocument();
+    expect(await screen.findByText('连接失败：Branch lookup failed.')).toBeInTheDocument();
     expect(screen.getByDisplayValue(/group\/alpha/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue('main')).toBeInTheDocument();
     expect(screen.getByText('abcdef123456')).toBeInTheDocument();
@@ -757,15 +757,15 @@ describe('side panel app shell', () => {
 
     render(<App />);
 
-    await userEvent.type(screen.getByLabelText(/gitlab base url/i), 'https://gitlab.example.com');
+    await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'https://gitlab.example.com');
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
-    await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+    await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
     expect(await screen.findByDisplayValue(/group\/alpha/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue('main')).toBeInTheDocument();
     expect(screen.getByText('abcdef123456')).toBeInTheDocument();
 
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: /^project$/i }), '2');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '仓库' }), '2');
 
     expect(await screen.findByText('Branch lookup failed.')).toBeInTheDocument();
     expect(screen.getByDisplayValue(/group\/alpha/i)).toBeInTheDocument();
@@ -782,7 +782,7 @@ describe('side panel app shell', () => {
     ]);
 
     await connectApp();
-    await userEvent.click(screen.getByRole('button', { name: /copy url/i }));
+    await userEvent.click(screen.getByRole('button', { name: '复制链接' }));
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://gitlab.example.com/group/alpha');
   });
@@ -796,7 +796,7 @@ describe('side panel app shell', () => {
     ]);
 
     await connectApp();
-    await userEvent.click(screen.getByRole('button', { name: /copy branch/i }));
+    await userEvent.click(screen.getByRole('button', { name: '复制分支' }));
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('main');
   });
@@ -810,7 +810,7 @@ describe('side panel app shell', () => {
     ]);
 
     await connectApp();
-    await userEvent.click(screen.getByRole('button', { name: /copy hash/i }));
+    await userEvent.click(screen.getByRole('button', { name: '复制 Hash' }));
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('abcdef123456');
   });
@@ -823,12 +823,12 @@ describe('side panel app shell', () => {
       { url: 'https://gitlab.example.com/group/alpha/-/tree/main' } as chrome.tabs.Tab,
     ]);
     await connectApp();
-    await userEvent.click(screen.getByRole('button', { name: /copy url/i }));
+    await userEvent.click(screen.getByRole('button', { name: '复制链接' }));
 
-    expect(await screen.findByRole('button', { name: /^copied$/i })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: '已复制' })).toBeInTheDocument();
 
     await new Promise((resolve) => window.setTimeout(resolve, 1600));
 
-    expect(screen.getByRole('button', { name: /copy url/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '复制链接' })).toBeInTheDocument();
   });
 });

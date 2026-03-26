@@ -25,14 +25,14 @@ export function ConnectionForm({
     <section className="panel-section" aria-labelledby="connection-title">
       <div className="panel-section__header">
         <h2 className="panel-section__title" id="connection-title">
-          Connection
+          连接配置
         </h2>
-        <p className="panel-section__description">Enter your GitLab instance and personal access token.</p>
+        <p className="panel-section__description">输入 GitLab 地址和个人访问令牌。</p>
       </div>
 
       <div className="connection-form">
         <div className="field">
-          <label htmlFor="gitlab-base-url">GitLab Base URL</label>
+          <label htmlFor="gitlab-base-url">GitLab 地址</label>
           <input
             id="gitlab-base-url"
             name="baseUrl"
@@ -58,7 +58,7 @@ export function ConnectionForm({
         </div>
 
         <button className="button" type="button" onClick={onConnect} disabled={isConnecting}>
-          Connect
+          连接
         </button>
       </div>
 
