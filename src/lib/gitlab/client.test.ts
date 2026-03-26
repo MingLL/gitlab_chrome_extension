@@ -34,7 +34,8 @@ describe('createGitLabClient', () => {
             id: 1,
             name: 'Alpha',
             path_with_namespace: 'group/alpha',
-            web_url: 'https://gitlab.example.com/group/alpha'
+            web_url: 'https://gitlab.example.com/group/alpha',
+            http_url_to_repo: 'https://gitlab.example.com/group/alpha.git'
           }
         ]
       })
@@ -60,12 +61,14 @@ describe('createGitLabClient', () => {
 
     await expect(client.fetchAllProjects()).resolves.toEqual([
       {
+        httpCloneUrl: 'https://gitlab.example.com/group/alpha.git',
         id: 1,
         name: 'Alpha',
         pathWithNamespace: 'group/alpha',
         webUrl: 'https://gitlab.example.com/group/alpha'
       },
       {
+        httpCloneUrl: 'https://gitlab.example.com/group/beta.git',
         id: 2,
         name: 'Beta',
         pathWithNamespace: 'group/beta',

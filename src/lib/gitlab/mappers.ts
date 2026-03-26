@@ -5,6 +5,7 @@ type GitLabProjectResponse = {
   name: string;
   path_with_namespace: string;
   web_url: string;
+  http_url_to_repo?: string;
 };
 
 type GitLabBranchResponse = {
@@ -19,7 +20,8 @@ export function mapProject(project: GitLabProjectResponse): GitLabProject {
     id: project.id,
     name: project.name,
     pathWithNamespace: project.path_with_namespace,
-    webUrl: project.web_url
+    webUrl: project.web_url,
+    httpCloneUrl: project.http_url_to_repo ?? `${project.web_url}.git`
   };
 }
 

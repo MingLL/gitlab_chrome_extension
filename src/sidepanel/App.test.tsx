@@ -23,6 +23,7 @@ function mockGitLabConnectSequence(input?: {
     name: string;
     path_with_namespace: string;
     web_url: string;
+    http_url_to_repo?: string;
   }>;
   branchResponses?: Array<Array<{ name: string; commit: { id: string } }>>;
 }) {
@@ -32,6 +33,7 @@ function mockGitLabConnectSequence(input?: {
       name: 'Alpha',
       path_with_namespace: 'group/alpha',
       web_url: 'https://gitlab.example.com/group/alpha',
+      http_url_to_repo: 'https://gitlab.example.com/group/alpha.git',
     },
   ];
   const branchResponses = input?.branchResponses ?? [[{ name: 'main', commit: { id: 'abcdef123456' } }]];
@@ -775,6 +777,15 @@ describe('side panel app shell', () => {
 
   it('copies the project web url from the result summary', async () => {
     mockGitLabConnectSequence({
+      projects: [
+        {
+          id: 1,
+          name: 'Alpha',
+          path_with_namespace: 'group/alpha',
+          web_url: 'https://gitlab.example.com/group/alpha',
+          http_url_to_repo: 'https://gitlab.example.com/group/alpha.git',
+        },
+      ],
       branchResponses: [[{ name: 'main', commit: { id: 'abcdef123456' } }]],
     });
     vi.mocked(chrome.tabs.query).mockResolvedValue([
@@ -784,7 +795,7 @@ describe('side panel app shell', () => {
     await connectApp();
     await userEvent.click(screen.getByRole('button', { name: '复制链接' }));
 
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://gitlab.example.com/group/alpha');
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://gitlab.example.com/group/alpha.git');
   });
 
   it('copies the selected branch from the result summary', async () => {

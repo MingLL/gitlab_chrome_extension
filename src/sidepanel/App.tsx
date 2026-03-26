@@ -304,7 +304,7 @@ export function App() {
           statusTone={branchStatusTone}
         />
         <ResultSummary
-          projectWebUrl={selectedProject?.webUrl ?? ''}
+          projectWebUrl={selectedProject?.httpCloneUrl ?? ''}
           selectedBranchName={selectedBranchName}
           latestCommitHash={latestCommitHash}
         />

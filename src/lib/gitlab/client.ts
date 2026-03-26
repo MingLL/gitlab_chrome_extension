@@ -13,6 +13,7 @@ type GitLabProjectResponse = {
   name: string;
   path_with_namespace: string;
   web_url: string;
+  http_url_to_repo?: string;
 };
 
 type GitLabBranchResponse = {

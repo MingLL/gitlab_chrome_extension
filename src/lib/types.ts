@@ -15,6 +15,7 @@ export type GitLabProject = {
   name: string;
   pathWithNamespace: string;
   webUrl: string;
+  httpCloneUrl: string;
 };
 
 export type GitLabBranch = {
