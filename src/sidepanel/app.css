@@ -1,0 +1,153 @@
+.sidepanel {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 16px;
+  background: linear-gradient(180deg, #f7f4ec 0%, #efe8db 100%);
+  color: #1f1a17;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.sidepanel__header {
+  margin-bottom: 16px;
+}
+
+.sidepanel__header h1 {
+  margin: 0 0 8px;
+  font-size: 1.5rem;
+}
+
+.sidepanel__header p {
+  margin: 0;
+  color: #5e544a;
+  font-size: 0.95rem;
+}
+
+.sidepanel__stack {
+  display: grid;
+  gap: 12px;
+}
+
+.panel-section {
+  padding: 14px;
+  border: 1px solid #d4c6b2;
+  border-radius: 12px;
+  background: rgba(255, 252, 246, 0.92);
+  box-shadow: 0 8px 24px rgba(69, 42, 20, 0.08);
+}
+
+.panel-section__header {
+  margin-bottom: 12px;
+}
+
+.panel-section__title {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.panel-section__description {
+  margin: 0;
+  color: #5e544a;
+  font-size: 0.9rem;
+}
+
+.connection-form {
+  display: grid;
+  gap: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid #c5b49f;
+  border-radius: 10px;
+  background: #fffdf8;
+  color: inherit;
+}
+
+.button {
+  width: fit-content;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 999px;
+  background: #8b4d2f;
+  color: #fffdf8;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button:disabled,
+.field input:disabled,
+.field select:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.status-notice {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f3ebdc;
+  color: #5e544a;
+  font-size: 0.9rem;
+}
+
+.status-notice--warning {
+  background: #f7e8c7;
+  color: #6d4d00;
+}
+
+.status-notice--error {
+  background: #f9dbd7;
+  color: #8a2d21;
+}
+
+.summary-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.summary-list div {
+  display: grid;
+  gap: 2px;
+}
+
+.summary-list dt {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5e544a;
+}
+
+.summary-list dd {
+  margin: 0;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.summary-list__value-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.summary-list__value-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.summary-list__value-row .button {
+  flex-shrink: 0;
+}

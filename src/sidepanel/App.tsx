@@ -1,0 +1,314 @@
+import { useEffect, useRef, useState } from 'react';
+
+import { createGitLabClient } from '../lib/gitlab/client';
+import { normalizeBaseUrl } from '../lib/gitlab/normalizeBaseUrl';
+import { loadConfig, requestHostPermission, saveConfig } from '../lib/storage/configStorage';
+import { loadRecentProjects, saveRecentProjects, upsertRecentProject } from '../lib/storage/recentProjectsStorage';
+import { getActiveTabUrl } from '../lib/tabs/currentTab';
+import { matchProjectPathFromTab } from '../lib/tabs/projectMatcher';
+import type { GitLabBranch, GitLabConfig, GitLabProject, RecentProject } from '../lib/types';
+import { groupProjects } from '../lib/ui/groupProjects';
+import './app.css';
+import { BranchSelect } from './components/BranchSelect';
+import { ConnectionForm } from './components/ConnectionForm';
+import { ProjectSelect } from './components/ProjectSelect';
+import { ResultSummary } from './components/ResultSummary';
+import type { StatusNoticeTone } from './components/StatusNotice';
+
+const EMPTY_HASH = 'Not loaded yet';
+const NOT_CONFIGURED_MESSAGE = 'Not configured. Enter your GitLab base URL and token to connect.';
+
+type CurrentTabMatchState = 'unknown' | 'matched' | 'mismatched';
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Something went wrong.';
+}
+
+export function App() {
+  const [baseUrl, setBaseUrl] = useState('');
+  const [token, setToken] = useState('');
+  const [connectedConfig, setConnectedConfig] = useState<GitLabConfig | null>(null);
+  const [projects, setProjects] = useState<GitLabProject[]>([]);
+  const [branches, setBranches] = useState<GitLabBranch[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [selectedBranchName, setSelectedBranchName] = useState('');
+  const [latestCommitHash, setLatestCommitHash] = useState(EMPTY_HASH);
+  const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
+  const [connectionErrorMessage, setConnectionErrorMessage] = useState<string | null>(null);
+  const [branchErrorMessage, setBranchErrorMessage] = useState<string | null>(null);
+  const [hasFetchedProjects, setHasFetchedProjects] = useState(false);
+  const [currentTabMatchState, setCurrentTabMatchState] = useState<CurrentTabMatchState>('unknown');
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isLoadingBranches, setIsLoadingBranches] = useState(false);
+  const recentProjectsRef = useRef<RecentProject[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function initialize() {
+      try {
+        const [storedConfig, storedRecentProjects] = await Promise.all([loadConfig(), loadRecentProjects()]);
+
+        if (cancelled) {
+          return;
+        }
+
+        if (storedConfig) {
+          setBaseUrl(storedConfig.baseUrl);
+          setToken(storedConfig.token);
+          setConnectedConfig(storedConfig);
+        }
+
+        recentProjectsRef.current = storedRecentProjects;
+        setRecentProjects(storedRecentProjects);
+      } catch (error) {
+        if (!cancelled) {
+          setConnectionErrorMessage(getErrorMessage(error));
+        }
+      }
+    }
+
+    void initialize();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function loadBranchesForProject(project: GitLabProject, config: GitLabConfig, persistRecent: boolean) {
+    setBranchErrorMessage(null);
+    setIsLoadingBranches(true);
+
+    try {
+      const client = createGitLabClient(config.baseUrl, config.token);
+      const nextBranches = await client.fetchBranches(project.id);
+      const initialBranch = nextBranches[0] ?? null;
+
+      setSelectedProjectId(String(project.id));
+      setBranches(nextBranches);
+      setSelectedBranchName(initialBranch?.name ?? '');
+      setLatestCommitHash(initialBranch?.commitId ?? EMPTY_HASH);
+
+      if (!persistRecent) {
+        return;
+      }
+
+      const nextRecentProjects = upsertRecentProject(recentProjectsRef.current, {
+        gitlabBaseUrl: config.baseUrl,
+        projectId: project.id,
+        projectName: project.name,
+        lastUsedAt: new Date().toISOString()
+      });
+
+      recentProjectsRef.current = nextRecentProjects;
+      setRecentProjects(nextRecentProjects);
+      await saveRecentProjects(nextRecentProjects);
+    } catch (error) {
+      setBranchErrorMessage(getErrorMessage(error));
+    } finally {
+      setIsLoadingBranches(false);
+    }
+  }
+
+  async function handleConnect() {
+    setIsConnecting(true);
+    setIsLoadingBranches(false);
+    setConnectionErrorMessage(null);
+    setBranchErrorMessage(null);
+
+    try {
+      let normalizedBaseUrl: string;
+
+      try {
+        normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+      } catch {
+        throw new Error('Invalid GitLab base URL.');
+      }
+
+      const nextConfig = { baseUrl: normalizedBaseUrl, token };
+
+      await requestHostPermission(nextConfig.baseUrl);
+
+      const client = createGitLabClient(nextConfig.baseUrl, nextConfig.token);
+      const [_, loadedProjects, activeTabUrl] = await Promise.all([
+        client.fetchCurrentUser(),
+        client.fetchAllProjects(),
+        getActiveTabUrl()
+      ]);
+
+      const matchedPath = activeTabUrl ? matchProjectPathFromTab(activeTabUrl, nextConfig.baseUrl) : null;
+      const matchedProject = matchedPath
+        ? loadedProjects.find((project) => project.pathWithNamespace === matchedPath) ?? null
+        : null;
+      let nextSelectedProjectId = '';
+      let nextBranches: GitLabBranch[] = [];
+      let nextSelectedBranchName = '';
+      let nextLatestCommitHash = EMPTY_HASH;
+      let nextCurrentTabMatchState: CurrentTabMatchState = activeTabUrl ? 'mismatched' : 'unknown';
+
+      if (matchedProject) {
+        setIsLoadingBranches(true);
+
+        try {
+          nextBranches = await client.fetchBranches(matchedProject.id);
+        } finally {
+          setIsLoadingBranches(false);
+        }
+
+        const initialBranch = nextBranches[0] ?? null;
+        nextSelectedProjectId = String(matchedProject.id);
+        nextSelectedBranchName = initialBranch?.name ?? '';
+        nextLatestCommitHash = initialBranch?.commitId ?? EMPTY_HASH;
+        nextCurrentTabMatchState = 'matched';
+      } else if (loadedProjects.length === 0) {
+        nextCurrentTabMatchState = 'unknown';
+      }
+
+      await saveConfig(nextConfig);
+
+      setBaseUrl(normalizedBaseUrl);
+      setConnectedConfig(nextConfig);
+      setHasFetchedProjects(true);
+      setCurrentTabMatchState(nextCurrentTabMatchState);
+      setProjects(loadedProjects);
+      setBranches(nextBranches);
+      setSelectedProjectId(nextSelectedProjectId);
+      setSelectedBranchName(nextSelectedBranchName);
+      setLatestCommitHash(nextLatestCommitHash);
+    } catch (error) {
+      setConnectionErrorMessage(`Connection failed. ${getErrorMessage(error)}`);
+    } finally {
+      setIsLoadingBranches(false);
+      setIsConnecting(false);
+    }
+  }
+
+  async function handleProjectChange(projectId: string) {
+    if (projectId === '') {
+      setSelectedProjectId('');
+      setBranches([]);
+      setSelectedBranchName('');
+      setLatestCommitHash(EMPTY_HASH);
+      setBranchErrorMessage(null);
+      return;
+    }
+
+    if (!connectedConfig) {
+      return;
+    }
+
+    const selectedProject = projects.find((project) => String(project.id) === projectId);
+    if (!selectedProject) {
+      return;
+    }
+
+    await loadBranchesForProject(selectedProject, connectedConfig, true);
+  }
+
+  function handleBranchChange(branchName: string) {
+    setSelectedBranchName(branchName);
+
+    const selectedBranch = branches.find((branch) => branch.name === branchName);
+    setLatestCommitHash(selectedBranch?.commitId ?? EMPTY_HASH);
+  }
+
+  const projectGroups = groupProjects(projects, recentProjects, connectedConfig?.baseUrl ?? '');
+  let connectionStatusMessage: string | null = null;
+  let connectionStatusTone: StatusNoticeTone = 'info';
+  if (connectionErrorMessage) {
+    connectionStatusMessage = connectionErrorMessage;
+    connectionStatusTone = 'error';
+  } else if (isConnecting) {
+    connectionStatusMessage = 'Connecting to GitLab...';
+  } else if (!connectedConfig) {
+    connectionStatusMessage = NOT_CONFIGURED_MESSAGE;
+    connectionStatusTone = 'warning';
+  }
+
+  let projectStatusMessage: string | null = null;
+  let projectStatusTone: StatusNoticeTone = 'info';
+  if (isConnecting) {
+    projectStatusMessage = 'Loading projects...';
+  } else if (!connectedConfig) {
+    projectStatusMessage = 'Not configured.';
+    projectStatusTone = 'warning';
+  } else if (!hasFetchedProjects) {
+    projectStatusMessage = 'Connect to load projects.';
+    projectStatusTone = 'warning';
+  } else if (projects.length === 0) {
+    projectStatusMessage = 'No accessible projects found for this account.';
+    projectStatusTone = 'warning';
+  } else if (selectedProjectId === '' && currentTabMatchState === 'mismatched') {
+    projectStatusMessage = 'Current tab does not match the configured GitLab. Select a project manually.';
+    projectStatusTone = 'warning';
+  }
+
+  let branchStatusMessage: string | null = null;
+  let branchStatusTone: StatusNoticeTone = 'info';
+  if (branchErrorMessage) {
+    branchStatusMessage = branchErrorMessage;
+    branchStatusTone = 'error';
+  } else if (isLoadingBranches) {
+    branchStatusMessage = 'Loading branches...';
+  } else if (!connectedConfig) {
+    branchStatusMessage = 'Not configured.';
+    branchStatusTone = 'warning';
+  } else if (!hasFetchedProjects) {
+    branchStatusMessage = 'Connect to load projects first.';
+    branchStatusTone = 'warning';
+  } else if (selectedProjectId === '') {
+    branchStatusMessage = 'Select a project to load branches.';
+    branchStatusTone = 'warning';
+  } else if (branches.length === 0) {
+    branchStatusMessage = 'Selected project has no branches.';
+    branchStatusTone = 'warning';
+  }
+  const selectedProject = projects.find((project) => String(project.id) === selectedProjectId) ?? null;
+
+  return (
+    <main className="sidepanel">
+      <header className="sidepanel__header">
+        <h1>GitLab Chrome Extension</h1>
+        <p>Connect to GitLab, choose a project and branch, then review the latest commit.</p>
+      </header>
+
+      <div className="sidepanel__stack">
+        <ConnectionForm
+          baseUrl={baseUrl}
+          token={token}
+          isConnecting={isConnecting}
+          onBaseUrlChange={setBaseUrl}
+          onTokenChange={setToken}
+          onConnect={() => {
+            void handleConnect();
+          }}
+          statusMessage={connectionStatusMessage}
+          statusTone={connectionStatusTone}
+        />
+        <ProjectSelect
+          groups={projectGroups}
+          value={selectedProjectId}
+          disabled={isConnecting || projectGroups.length === 0}
+          onChange={(projectId) => {
+            void handleProjectChange(projectId);
+          }}
+          statusMessage={projectStatusMessage}
+          statusTone={projectStatusTone}
+        />
+        <BranchSelect
+          branches={branches}
+          value={selectedBranchName}
+          disabled={selectedProjectId === '' || isLoadingBranches || branches.length === 0}
+          onChange={handleBranchChange}
+          statusMessage={branchStatusMessage}
+          statusTone={branchStatusTone}
+        />
+        <ResultSummary
+          projectWebUrl={selectedProject?.webUrl ?? ''}
+          selectedBranchName={selectedBranchName}
+          latestCommitHash={latestCommitHash}
+        />
+      </div>
+    </main>
+  );
+}
