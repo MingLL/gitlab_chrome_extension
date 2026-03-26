@@ -27,11 +27,11 @@ describe('groupProjects', () => {
 
     expect(groups).toEqual([
       {
-        label: 'Recent',
+        label: '最近使用',
         options: [{ id: 2, label: 'Beta', pathWithNamespace: 'group/beta', webUrl: 'https://gitlab.example.com/group/beta' }]
       },
       {
-        label: 'All Projects',
+        label: '全部项目',
         options: [{ id: 1, label: 'Alpha', pathWithNamespace: 'group/alpha', webUrl: 'https://gitlab.example.com/group/alpha' }]
       }
     ]);
@@ -56,11 +56,11 @@ describe('groupProjects', () => {
 
     expect(groups).toEqual([
       {
-        label: 'Recent',
+        label: '最近使用',
         options: [{ id: 1, label: 'Alpha', pathWithNamespace: 'group/alpha', webUrl: 'https://gitlab.example.com/group/alpha' }]
       },
       {
-        label: 'All Projects',
+        label: '全部项目',
         options: [{ id: 2, label: 'Beta', pathWithNamespace: 'group/beta', webUrl: 'https://gitlab.example.com/group/beta' }]
       }
     ]);
@@ -82,7 +82,7 @@ describe('groupProjects', () => {
 
     expect(groups).toEqual([
       {
-        label: 'All Projects',
+        label: '全部项目',
         options: [{ id: 2, label: 'Beta', pathWithNamespace: 'group/beta', webUrl: 'https://gitlab.example.com/group/beta' }]
       }
     ]);

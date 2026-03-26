@@ -15,13 +15,13 @@ import { ProjectSelect } from './components/ProjectSelect';
 import { ResultSummary } from './components/ResultSummary';
 import type { StatusNoticeTone } from './components/StatusNotice';
 
-const EMPTY_HASH = 'Not loaded yet';
-const NOT_CONFIGURED_MESSAGE = 'Not configured. Enter your GitLab base URL and token to connect.';
+const EMPTY_HASH = '尚未加载';
+const NOT_CONFIGURED_MESSAGE = '尚未配置，请输入 GitLab 地址和 Token 后连接。';
 
 type CurrentTabMatchState = 'unknown' | 'matched' | 'mismatched';
 
 function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Something went wrong.';
+  return error instanceof Error ? error.message : '发生了未知错误。';
 }
 
 export function App() {
@@ -122,7 +122,7 @@ export function App() {
       try {
         normalizedBaseUrl = normalizeBaseUrl(baseUrl);
       } catch {
-        throw new Error('Invalid GitLab base URL.');
+        throw new Error('GitLab 地址无效。');
       }
 
       const nextConfig = { baseUrl: normalizedBaseUrl, token };
@@ -176,7 +176,7 @@ export function App() {
       setSelectedBranchName(nextSelectedBranchName);
       setLatestCommitHash(nextLatestCommitHash);
     } catch (error) {
-      setConnectionErrorMessage(`Connection failed. ${getErrorMessage(error)}`);
+      setConnectionErrorMessage(`连接失败：${getErrorMessage(error)}`);
     } finally {
       setIsLoadingBranches(false);
       setIsConnecting(false);
@@ -219,7 +219,7 @@ export function App() {
     connectionStatusMessage = connectionErrorMessage;
     connectionStatusTone = 'error';
   } else if (isConnecting) {
-    connectionStatusMessage = 'Connecting to GitLab...';
+    connectionStatusMessage = '正在连接 GitLab...';
   } else if (!connectedConfig) {
     connectionStatusMessage = NOT_CONFIGURED_MESSAGE;
     connectionStatusTone = 'warning';
@@ -228,18 +228,18 @@ export function App() {
   let projectStatusMessage: string | null = null;
   let projectStatusTone: StatusNoticeTone = 'info';
   if (isConnecting) {
-    projectStatusMessage = 'Loading projects...';
+    projectStatusMessage = '正在加载仓库...';
   } else if (!connectedConfig) {
-    projectStatusMessage = 'Not configured.';
+    projectStatusMessage = '尚未配置。';
     projectStatusTone = 'warning';
   } else if (!hasFetchedProjects) {
-    projectStatusMessage = 'Connect to load projects.';
+    projectStatusMessage = '请先连接后再加载仓库。';
     projectStatusTone = 'warning';
   } else if (projects.length === 0) {
-    projectStatusMessage = 'No accessible projects found for this account.';
+    projectStatusMessage = '当前账号下没有可访问的仓库。';
     projectStatusTone = 'warning';
   } else if (selectedProjectId === '' && currentTabMatchState === 'mismatched') {
-    projectStatusMessage = 'Current tab does not match the configured GitLab. Select a project manually.';
+    projectStatusMessage = '当前标签页与已配置的 GitLab 不匹配，请手动选择仓库。';
     projectStatusTone = 'warning';
   }
 
@@ -249,18 +249,18 @@ export function App() {
     branchStatusMessage = branchErrorMessage;
     branchStatusTone = 'error';
   } else if (isLoadingBranches) {
-    branchStatusMessage = 'Loading branches...';
+    branchStatusMessage = '正在加载分支...';
   } else if (!connectedConfig) {
-    branchStatusMessage = 'Not configured.';
+    branchStatusMessage = '尚未配置。';
     branchStatusTone = 'warning';
   } else if (!hasFetchedProjects) {
-    branchStatusMessage = 'Connect to load projects first.';
+    branchStatusMessage = '请先连接并加载仓库。';
     branchStatusTone = 'warning';
   } else if (selectedProjectId === '') {
-    branchStatusMessage = 'Select a project to load branches.';
+    branchStatusMessage = '请先选择仓库后再加载分支。';
     branchStatusTone = 'warning';
   } else if (branches.length === 0) {
-    branchStatusMessage = 'Selected project has no branches.';
+    branchStatusMessage = '当前仓库下没有分支。';
     branchStatusTone = 'warning';
   }
   const selectedProject = projects.find((project) => String(project.id) === selectedProjectId) ?? null;
@@ -268,8 +268,8 @@ export function App() {
   return (
     <main className="sidepanel">
       <header className="sidepanel__header">
-        <h1>GitLab Chrome Extension</h1>
-        <p>Connect to GitLab, choose a project and branch, then review the latest commit.</p>
+        <h1>GitLab 仓库助手</h1>
+        <p>连接 GitLab，选择仓库和分支，并查看最新提交信息。</p>
       </header>
 
       <div className="sidepanel__stack">
