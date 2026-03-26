@@ -1,135 +1,133 @@
-# GitLab Chrome Extension
+# GitLab Chrome 插件
 
-Chrome side panel extension for connecting to a GitLab instance, selecting a project and branch, and copying the latest commit details.
+基于 Chrome Side Panel 的 GitLab 插件，用于连接 GitLab、选择仓库和分支，并复制最新提交信息。
 
-## Requirements
+## 环境要求
 
-- Chrome 114 or newer
-- A GitLab base URL such as `https://gitlab.example.com`
-- GitLab base URLs may also use IPs, ports, or path prefixes:
+- Chrome `114+`
+- 可访问的 GitLab `11.11.3-ee` 实例
+- 可访问项目和分支信息的 Personal Access Token
+- 支持以下 GitLab 地址形式：
+  - `https://gitlab.example.com`
   - `http://192.168.1.10`
   - `http://192.168.1.10:8080`
   - `http://192.168.1.10:8080/gitlab`
-- A GitLab personal access token that can access your projects and branches
 
-## Install dependencies
+## 安装依赖
 
 ```bash
 npm install
 ```
 
-## Build
+## 构建
 
 ```bash
 npm run build
 ```
 
-The production output is written to `dist/`.
+构建产物输出到 [dist](/Users/mingll/Documents/SomeProject/gitlab_chrome_extension/dist)。
 
-## Load the unpacked extension in Chrome
+## 在 Chrome 中加载插件
 
-1. Run `npm run build`.
-2. Open `chrome://extensions`.
-3. Enable `Developer mode`.
-4. Click `Load unpacked`.
-5. Select the project's `dist/` directory.
-6. Confirm the extension card appears without build errors.
+1. 执行 `npm run build`
+2. 打开 `chrome://extensions`
+3. 打开右上角 `Developer mode`
+4. 点击 `Load unpacked`
+5. 选择 [dist](/Users/mingll/Documents/SomeProject/gitlab_chrome_extension/dist) 目录
+6. 确认扩展卡片正常出现，没有构建报错
 
-## Open the side panel
+## 打开侧边栏
 
-1. In `chrome://extensions`, open the extension details page.
-2. Pin the extension to the toolbar if needed.
-3. Click the extension icon, or use Chrome's side panel entry for the extension.
-4. Keep the side panel open while testing GitLab project selection and copy actions.
+1. 在 `chrome://extensions` 找到该插件
+2. 如有需要，将插件固定到工具栏
+3. 点击插件图标，或从 Chrome 的 Side Panel 入口打开
+4. 保持侧边栏打开，方便联动当前 GitLab 页面进行验证
 
-## GitLab setup
+## 连接 GitLab
 
-Enter these values in the side panel before connecting:
+在侧边栏中输入：
 
-- `GitLab Base URL`: the root URL for your GitLab instance
-- `Token`: a personal access token for that GitLab instance
+- `GitLab 地址`
+- `Token`
 
-When you connect to a new GitLab host for the first time, Chrome will request host permission for that GitLab origin or path prefix. The extension must be allowed to access that host before it can call the GitLab API.
+首次连接某个新的 GitLab 地址时，Chrome 会弹出 host permission 授权。必须允许该地址访问权限，插件才能请求 GitLab API。
 
-## Typical usage
+## 典型使用流程
 
-1. Enter `GitLab Base URL`.
-2. Enter `Token`.
-3. Click `Connect`.
-4. Approve the Chrome host permission prompt for that GitLab host.
-5. Wait for the project list to load.
-6. If the active tab already points to a project on the configured GitLab instance, the extension should preselect that project.
-7. Otherwise choose a project manually.
-8. Choose a branch.
-9. Copy the project URL, branch, or latest commit hash from the result summary.
+1. 输入 `GitLab 地址`
+2. 输入 `Token`
+3. 点击 `连接`
+4. 允许 Chrome 弹出的 host permission
+5. 等待仓库列表加载
+6. 如果当前标签页正打开该 GitLab 的某个仓库页，插件会优先选中该仓库
+7. 否则手动选择仓库
+8. 选择分支
+9. 在结果汇总区复制仓库链接、分支信息或最新提交 Hash
 
-## Manual acceptance checklist
+## 手工验收清单
 
-Use this checklist after loading the unpacked extension.
+### 连接与授权
 
-### Connection and permissions
+1. 使用全新状态打开侧边栏
+2. 输入正确的 GitLab 地址和 Token
+3. 点击 `连接`
+4. 确认 Chrome 弹出对应 GitLab 地址的授权请求
+5. 允许授权
+6. 确认仓库列表正常加载
 
-1. Open the side panel with a fresh extension state.
-2. Enter a valid GitLab base URL and token.
-3. Click `Connect`.
-4. Verify Chrome shows a host permission prompt for the configured GitLab host.
-5. Approve the prompt.
-6. Verify the extension loads projects successfully.
+### GitLab 地址兼容性
 
-### Base URL compatibility
+按你的环境分别验证以下地址形式：
 
-Verify the extension accepts each format when reachable in your environment:
+1. 域名：`https://gitlab.example.com`
+2. IP：`http://192.168.1.10`
+3. IP + 端口：`http://192.168.1.10:8080`
+4. 路径前缀：`http://192.168.1.10:8080/gitlab`
 
-1. Domain URL such as `https://gitlab.example.com`
-2. IP URL such as `http://192.168.1.10`
-3. IP with port such as `http://192.168.1.10:8080`
-4. URL with path prefix such as `http://192.168.1.10:8080/gitlab`
+### 当前标签页仓库预选
 
-### Current tab project matching
+1. 先打开某个 GitLab 仓库页面
+2. 使用相同 GitLab 地址连接插件
+3. 确认匹配仓库会自动预选
+4. 切换到非 GitLab 页面或其他域名页面
+5. 确认插件显示“当前标签页与已配置的 GitLab 不匹配”，但仍可手动选择仓库
 
-1. Open a GitLab project page in Chrome before connecting.
-2. Connect with the same GitLab base URL.
-3. Verify the matching project is preselected automatically.
-4. Open a non-GitLab tab or a tab from another host.
-5. Verify the extension shows the mismatch notice and still allows manual project selection.
+### 仓库、分支与 Hash 流程
 
-### Project, branch, and hash flow
+1. 确认仓库下拉中有当前用户可访问的仓库
+2. 手动选择一个仓库
+3. 确认分支下拉加载成功
+4. 选择一个分支
+5. 确认最新提交 Hash 会更新为该分支最新提交
 
-1. Confirm the project dropdown contains projects the user can access.
-2. Select a project manually.
-3. Verify the branch dropdown loads.
-4. Select a branch.
-5. Verify the latest commit hash updates to the selected branch's head commit.
+### 最近使用仓库
 
-### Recent projects
+1. 手动选择一个仓库
+2. 关闭并重新打开侧边栏
+3. 确认仓库下拉顶部出现 `最近使用`
+4. 确认最近使用列表按 GitLab 地址隔离
 
-1. Manually select a project.
-2. Reload the extension side panel.
-3. Verify the previously selected project appears in the `Recent` group at the top of the project dropdown.
-4. Verify `Recent` entries are scoped to the configured GitLab base URL.
+### 复制功能
 
-### Copy actions
+1. 在仓库和分支都已选中的情况下点击 `复制链接`
+2. 粘贴并确认内容为完整仓库 URL
+3. 点击 `复制分支`
+4. 粘贴并确认内容为当前分支名
+5. 点击 `复制 Hash`
+6. 粘贴并确认内容为最新提交 Hash
+7. 确认按钮会短暂变为 `已复制`
 
-1. After a project and branch are selected, click `Copy URL`.
-2. Paste and verify the copied value is the full project web URL.
-3. Click `Copy Branch`.
-4. Paste and verify the copied value is the selected branch name.
-5. Click `Copy Hash`.
-6. Paste and verify the copied value is the latest commit hash.
-7. Verify the clicked button temporarily changes to `Copied`.
+### 错误状态
 
-### Error states
+1. 输入非法地址，如 `gitlab.example.com`
+2. 点击 `连接`
+3. 确认显示 `连接失败：GitLab 地址无效。`
+4. 对一个新 GitLab 地址拒绝 Chrome 授权
+5. 确认显示 `连接失败：Host permission request was denied.`
+6. 输入错误 Token
+7. 确认显示 GitLab API 错误提示
 
-1. Enter an invalid base URL such as `gitlab.example.com` and click `Connect`.
-2. Verify the side panel shows `Connection failed. Invalid GitLab base URL.`
-3. Deny the Chrome host permission prompt for a new GitLab host.
-4. Verify the side panel shows `Connection failed. Host permission request was denied.`
-5. Enter an invalid token.
-6. Verify the side panel shows the GitLab API error state.
-
-## Test and build
-
-Run the full automated checks with:
+## 测试与构建
 
 ```bash
 npm test -- --run
