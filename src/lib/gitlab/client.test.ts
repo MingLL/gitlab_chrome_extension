@@ -114,7 +114,7 @@ describe('createGitLabClient', () => {
         json: async () => [
           {
             name: 'main',
-            commit: { id: 'abc123' }
+            commit: { id: 'abc123', committed_date: '2026-03-27T09:30:00Z' }
           }
         ]
       })
@@ -123,7 +123,7 @@ describe('createGitLabClient', () => {
         json: async () => [
           {
             name: 'release',
-            commit: { id: 'def456' }
+            commit: { id: 'def456', committed_date: '2026-03-26T18:00:00Z' }
           }
         ]
       })
@@ -139,11 +139,13 @@ describe('createGitLabClient', () => {
     await expect(client.fetchBranches(42)).resolves.toEqual([
       {
         name: 'main',
-        commitId: 'abc123'
+        commitId: 'abc123',
+        committedDate: '2026-03-27T09:30:00Z'
       },
       {
         name: 'release',
-        commitId: 'def456'
+        commitId: 'def456',
+        committedDate: '2026-03-26T18:00:00Z'
       }
     ]);
 

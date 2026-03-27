@@ -12,6 +12,7 @@ type GitLabBranchResponse = {
   name: string;
   commit: {
     id: string;
+    committed_date?: string;
   };
 };
 
@@ -28,6 +29,7 @@ export function mapProject(project: GitLabProjectResponse): GitLabProject {
 export function mapBranch(branch: GitLabBranchResponse): GitLabBranch {
   return {
     name: branch.name,
-    commitId: branch.commit.id
+    commitId: branch.commit.id,
+    committedDate: branch.commit.committed_date ?? ''
   };
 }

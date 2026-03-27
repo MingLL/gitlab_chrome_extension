@@ -5,6 +5,14 @@ export type RecentProject = {
   lastUsedAt: string;
 };
 
+export type ProjectUsageRecord = {
+  gitlabBaseUrl: string;
+  projectId: number;
+  projectName: string;
+  lastUsedAt: string;
+  useCount: number;
+};
+
 export type GitLabConfig = {
   baseUrl: string;
   token: string;
@@ -21,4 +29,5 @@ export type GitLabProject = {
 export type GitLabBranch = {
   name: string;
   commitId: string;
+  committedDate: string;
 };
