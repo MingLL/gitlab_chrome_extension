@@ -3,3 +3,5 @@ dist
 .DS_Store
 .superpowers
 coverage
+release
+.local/keys/

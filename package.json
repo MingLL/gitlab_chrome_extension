@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && node scripts/generate-manifest.mjs",
-    "test": "vitest"
+    "test": "vitest",
+    "package:zip": "npm run build && node scripts/package-extension.mjs",
+    "keygen:crx": "node scripts/generate-crx-key.mjs",
+    "package:crx": "npm run build && node scripts/package-crx.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -21,6 +24,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "crx3": "^2.0.0",
     "jsdom": "^25.0.1",
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
