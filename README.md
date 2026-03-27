@@ -27,6 +27,53 @@ npm run build
 
 构建产物输出到 [dist](/Users/mingll/Documents/SomeProject/gitlab_chrome_extension/dist)。
 
+## 打包发布产物
+
+### 生成 Chrome Web Store 上传包
+
+```bash
+npm run package:zip
+```
+
+生成产物：
+
+- `release/gitlab-chrome-extension-<version>.zip`
+
+用途：
+
+- 用于手动上传到 Chrome Web Store
+
+### 生成本地测试 CRX 私钥
+
+```bash
+npm run keygen:crx
+```
+
+生成产物：
+
+- `.local/keys/chrome-extension.pem`
+
+用途：
+
+- 用于本地测试或内部环境生成签名 `.crx`
+- 该私钥仅建议用于测试，不应提交到仓库
+
+### 生成签名 CRX 文件
+
+```bash
+npm run package:crx -- --key .local/keys/chrome-extension.pem
+```
+
+生成产物：
+
+- `release/gitlab-chrome-extension-<version>.crx`
+
+用途：
+
+- 用于本地或内部环境分发签名扩展
+
+如果未传 `--key`，命令会直接失败，并提示先执行 `npm run keygen:crx` 或显式传入已有 PEM 私钥。
+
 ## 在 Chrome 中加载插件
 
 1. 执行 `npm run build`
@@ -35,6 +82,8 @@ npm run build
 4. 点击 `Load unpacked`
 5. 选择 [dist](/Users/mingll/Documents/SomeProject/gitlab_chrome_extension/dist) 目录
 6. 确认扩展卡片正常出现，没有构建报错
+
+这里加载的是“解压后的扩展”，使用的目录是 [dist](/Users/mingll/Documents/SomeProject/gitlab_chrome_extension/dist)，不是 `.zip` 或 `.crx` 文件。
 
 ## 打开侧边栏
 
