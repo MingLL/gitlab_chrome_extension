@@ -70,7 +70,24 @@ function mockGitLabConnectSequence(input?: {
   vi.stubGlobal('fetch', fetchMock);
 }
 
-async function connectApp() {
+async function connectApp(input?: {
+  recentProjects?: Array<{
+    gitlabBaseUrl: string;
+    projectId: number;
+    projectName: string;
+    lastUsedAt: string;
+  }>;
+}) {
+  vi.spyOn(recentProjectsStorage, 'loadRecentProjects').mockResolvedValue(
+    input?.recentProjects ?? [
+      {
+        gitlabBaseUrl: 'https://gitlab.example.com',
+        projectId: 1,
+        projectName: 'Alpha',
+        lastUsedAt: '2026-03-30T09:30:00.000Z'
+      }
+    ]
+  );
   render(<App />);
 
   await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'https://gitlab.example.com');
@@ -431,7 +448,7 @@ describe('side panel app shell', () => {
     expect(await screen.findByText('当前仓库下没有分支。')).toBeInTheDocument();
   });
 
-  it('preselects the current tab project when the tab matches a loaded project', async () => {
+  it('does not preselect the current tab project when there is no recent project', async () => {
     mockGitLabConnectSequence({
       projects: [
         {
@@ -460,8 +477,9 @@ describe('side panel app shell', () => {
     await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
     expect(await screen.findByRole('button', { name: /Alpha.*group\/alpha/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /main/i })).toBeInTheDocument();
-    expect(screen.getByText('abcdef123456')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /main/i })).not.toBeInTheDocument();
+    expect(screen.getByText('请先选择仓库后再加载分支。')).toBeInTheDocument();
+    expect(screen.getAllByText('尚未加载')).toHaveLength(3);
   });
 
   it('stores a manually selected project in recent projects', async () => {
@@ -614,6 +632,14 @@ describe('side panel app shell', () => {
     vi.mocked(chrome.tabs.query).mockResolvedValue([
       { url: 'https://gitlab.example.com/group/alpha/-/tree/main' } as chrome.tabs.Tab
     ]);
+    vi.spyOn(recentProjectsStorage, 'loadRecentProjects').mockResolvedValue([
+      {
+        gitlabBaseUrl: 'https://gitlab.example.com',
+        projectId: 1,
+        projectName: 'Alpha',
+        lastUsedAt: '2026-03-30T09:30:00.000Z'
+      }
+    ]);
 
     render(<App />);
 
@@ -672,6 +698,14 @@ describe('side panel app shell', () => {
     vi.stubGlobal('fetch', fetchMock);
     vi.mocked(chrome.tabs.query).mockResolvedValue([
       { url: 'https://gitlab.example.com/group/alpha/-/tree/main' } as chrome.tabs.Tab
+    ]);
+    vi.spyOn(recentProjectsStorage, 'loadRecentProjects').mockResolvedValue([
+      {
+        gitlabBaseUrl: 'https://gitlab.example.com',
+        projectId: 1,
+        projectName: 'Alpha',
+        lastUsedAt: '2026-03-30T09:30:00.000Z'
+      }
     ]);
 
     render(<App />);
@@ -751,6 +785,14 @@ describe('side panel app shell', () => {
     vi.mocked(chrome.tabs.query).mockResolvedValue([
       { url: 'https://gitlab.example.com/group/alpha/-/tree/main' } as chrome.tabs.Tab
     ]);
+    vi.spyOn(recentProjectsStorage, 'loadRecentProjects').mockResolvedValue([
+      {
+        gitlabBaseUrl: 'https://gitlab.example.com',
+        projectId: 1,
+        projectName: 'Alpha',
+        lastUsedAt: '2026-03-30T09:30:00.000Z'
+      }
+    ]);
 
     render(<App />);
 
@@ -811,6 +853,14 @@ describe('side panel app shell', () => {
     vi.mocked(chrome.tabs.query).mockResolvedValue([
       { url: 'https://gitlab.example.com/group/alpha/-/tree/main' } as chrome.tabs.Tab
     ]);
+    vi.spyOn(recentProjectsStorage, 'loadRecentProjects').mockResolvedValue([
+      {
+        gitlabBaseUrl: 'https://gitlab.example.com',
+        projectId: 1,
+        projectName: 'Alpha',
+        lastUsedAt: '2026-03-30T09:30:00.000Z'
+      }
+    ]);
 
     render(<App />);
 
@@ -851,6 +901,29 @@ describe('side panel app shell', () => {
     await userEvent.click(screen.getByRole('button', { name: '复制链接' }));
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://gitlab.example.com/group/alpha.git');
+  });
+
+  it('copies the project clone url without the .git suffix from the result summary', async () => {
+    mockGitLabConnectSequence({
+      projects: [
+        {
+          id: 1,
+          name: 'Alpha',
+          path_with_namespace: 'group/alpha',
+          web_url: 'https://gitlab.example.com/group/alpha',
+          http_url_to_repo: 'https://gitlab.example.com/group/alpha.git',
+        },
+      ],
+      branchResponses: [[{ name: 'main', commit: { id: 'abcdef123456', committed_date: '2026-03-27T09:30:00Z' } }]],
+    });
+    vi.mocked(chrome.tabs.query).mockResolvedValue([
+      { url: 'https://gitlab.example.com/group/alpha/-/tree/main' } as chrome.tabs.Tab,
+    ]);
+
+    await connectApp();
+    await userEvent.click(screen.getByRole('button', { name: '复制无 .git 链接' }));
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://gitlab.example.com/group/alpha');
   });
 
   it('copies the selected branch from the result summary', async () => {
@@ -896,5 +969,79 @@ describe('side panel app shell', () => {
     await new Promise((resolve) => window.setTimeout(resolve, 1600));
 
     expect(screen.getByRole('button', { name: '复制链接' })).toBeInTheDocument();
+  });
+
+  it('preselects the most recently used project when the current tab does not match', async () => {
+    mockGitLabConnectSequence({
+      projects: [
+        {
+          id: 1,
+          name: 'Alpha',
+          path_with_namespace: 'group/alpha',
+          web_url: 'https://gitlab.example.com/group/alpha',
+        },
+        {
+          id: 2,
+          name: 'Beta',
+          path_with_namespace: 'group/beta',
+          web_url: 'https://gitlab.example.com/group/beta',
+        }
+      ],
+      branchResponses: [[{ name: 'release', commit: { id: 'fedcba654321', committed_date: '2026-03-28T09:30:00Z' } }]],
+    });
+    vi.spyOn(recentProjectsStorage, 'loadRecentProjects').mockResolvedValue([
+      {
+        gitlabBaseUrl: 'https://gitlab.example.com',
+        projectId: 2,
+        projectName: 'Beta',
+        lastUsedAt: '2026-03-30T09:30:00.000Z'
+      }
+    ]);
+    vi.mocked(chrome.tabs.query).mockResolvedValue([
+      { url: 'https://example.com/outside-gitlab' } as chrome.tabs.Tab,
+    ]);
+
+    await connectApp();
+
+    expect(screen.getByRole('button', { name: /Beta.*group\/beta/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /release/i })).toBeInTheDocument();
+    expect(screen.getByText('fedcba654321')).toBeInTheDocument();
+  });
+
+  it('preselects the most recently used project even when the current tab matches another project', async () => {
+    mockGitLabConnectSequence({
+      projects: [
+        {
+          id: 1,
+          name: 'Alpha',
+          path_with_namespace: 'group/alpha',
+          web_url: 'https://gitlab.example.com/group/alpha',
+        },
+        {
+          id: 2,
+          name: 'Beta',
+          path_with_namespace: 'group/beta',
+          web_url: 'https://gitlab.example.com/group/beta',
+        }
+      ],
+      branchResponses: [[{ name: 'release', commit: { id: 'fedcba654321', committed_date: '2026-03-28T09:30:00Z' } }]],
+    });
+    vi.spyOn(recentProjectsStorage, 'loadRecentProjects').mockResolvedValue([
+      {
+        gitlabBaseUrl: 'https://gitlab.example.com',
+        projectId: 2,
+        projectName: 'Beta',
+        lastUsedAt: '2026-03-30T09:30:00.000Z'
+      }
+    ]);
+    vi.mocked(chrome.tabs.query).mockResolvedValue([
+      { url: 'https://gitlab.example.com/group/alpha/-/tree/main' } as chrome.tabs.Tab,
+    ]);
+
+    await connectApp();
+
+    expect(screen.getByRole('button', { name: /Beta.*group\/beta/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /release/i })).toBeInTheDocument();
+    expect(screen.getByText('fedcba654321')).toBeInTheDocument();
   });
 });
