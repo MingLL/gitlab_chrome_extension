@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/MingLL/gitlab_chrome_extension/compare/gitlab-chrome-extension-v0.2.0...gitlab-chrome-extension-v0.2.1) (2026-04-01)
+
+
+### Bug Fixes
+
+* **build:** 同步模板manifest版本与发版号 ([9d9b7e2](https://github.com/MingLL/gitlab_chrome_extension/commit/9d9b7e252725a517c7c734b7f2e2ef794f51ec52))
+
 ## [0.2.0](https://github.com/MingLL/gitlab_chrome_extension/compare/gitlab-chrome-extension-v0.1.0...gitlab-chrome-extension-v0.2.0) (2026-04-01)
 
 
