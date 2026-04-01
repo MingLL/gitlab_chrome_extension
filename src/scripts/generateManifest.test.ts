@@ -6,6 +6,8 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 
 import { buildManifestFromFiles } from '../../scripts/generate-manifest.mjs';
+import manifestBase from '../../manifest.base.json';
+import packageJson from '../../package.json';
 
 const tempDirs: string[] = [];
 
@@ -15,6 +17,24 @@ afterEach(async () => {
 });
 
 describe('generate manifest', () => {
+  test('仓库中的 manifest 模板版本与 package.json 保持一致', () => {
+    expect(manifestBase.version).toBe(packageJson.version);
+  });
+
+  test('release-please 会同步更新 manifest 模板版本', async () => {
+    const config = JSON.parse(
+      await readFile(join(process.cwd(), '.github', 'release-please-config.json'), 'utf8')
+    ) as {
+      packages?: Record<string, { ['extra-files']?: Array<{ type: string; path: string; jsonpath: string }> }>;
+    };
+
+    expect(config.packages?.['.']?.['extra-files']).toContainEqual({
+      type: 'json',
+      path: 'manifest.base.json',
+      jsonpath: '$.version'
+    });
+  });
+
   test('使用 package.json 的版本号覆盖 manifest 模板版本', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'manifest-'));
     tempDirs.push(dir);
