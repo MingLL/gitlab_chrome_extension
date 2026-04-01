@@ -26,6 +26,25 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : '发生了未知错误。';
 }
 
+function getMostRecentProjectForBaseUrl(
+  projects: GitLabProject[],
+  recentProjects: RecentProject[],
+  baseUrl: string
+): GitLabProject | null {
+  for (const recentProject of recentProjects) {
+    if (recentProject.gitlabBaseUrl !== baseUrl) {
+      continue;
+    }
+
+    const matchedProject = projects.find((project) => project.id === recentProject.projectId);
+    if (matchedProject) {
+      return matchedProject;
+    }
+  }
+
+  return null;
+}
+
 export function App() {
   const [baseUrl, setBaseUrl] = useState('');
   const [token, setToken] = useState('');
@@ -172,26 +191,28 @@ export function App() {
       let nextCurrentTabMatchState: CurrentTabMatchState = activeTabUrl ? 'mismatched' : 'unknown';
       let nextMatchedProjectId: number | null = null;
 
-      if (matchedProject) {
+      const defaultProject = getMostRecentProjectForBaseUrl(loadedProjects, recentProjectsRef.current, nextConfig.baseUrl);
+
+      if (defaultProject) {
         setIsLoadingBranches(true);
 
         try {
-          nextBranches = await client.fetchBranches(matchedProject.id);
+          nextBranches = await client.fetchBranches(defaultProject.id);
         } finally {
           setIsLoadingBranches(false);
         }
 
         const initialBranch = nextBranches[0] ?? null;
-        nextSelectedProjectId = String(matchedProject.id);
+        nextSelectedProjectId = String(defaultProject.id);
         nextSelectedBranchName = initialBranch?.name ?? '';
         nextLatestCommitHash = initialBranch?.commitId ?? EMPTY_HASH;
-        nextCurrentTabMatchState = 'matched';
-        nextMatchedProjectId = matchedProject.id;
+        nextCurrentTabMatchState = matchedProject ? 'matched' : nextCurrentTabMatchState;
+        nextMatchedProjectId = matchedProject?.id ?? null;
 
         const nextRecentProjects = upsertRecentProject(recentProjectsRef.current, {
           gitlabBaseUrl: nextConfig.baseUrl,
-          projectId: matchedProject.id,
-          projectName: matchedProject.name,
+          projectId: defaultProject.id,
+          projectName: defaultProject.name,
           lastUsedAt: new Date().toISOString()
         });
 
@@ -201,8 +222,8 @@ export function App() {
 
         const nextProjectUsage = upsertProjectUsage(projectUsageRef.current, {
           gitlabBaseUrl: nextConfig.baseUrl,
-          projectId: matchedProject.id,
-          projectName: matchedProject.name,
+          projectId: defaultProject.id,
+          projectName: defaultProject.name,
           usedAt: new Date().toISOString()
         });
 
@@ -374,7 +395,7 @@ export function App() {
           statusTone={branchStatusTone}
         />
         <ResultSummary
-          projectWebUrl={selectedProject?.httpCloneUrl ?? ''}
+          projectCloneUrl={selectedProject?.httpCloneUrl ?? ''}
           selectedBranchName={selectedBranchName}
           latestCommitHash={latestCommitHash}
         />
