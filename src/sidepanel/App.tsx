@@ -3,11 +3,13 @@ import { useEffect, useRef, useState } from 'react';
 import { createGitLabClient } from '../lib/gitlab/client';
 import { normalizeBaseUrl } from '../lib/gitlab/normalizeBaseUrl';
 import { loadConfig, requestHostPermission, saveConfig } from '../lib/storage/configStorage';
+import { loadProjectUsage, saveProjectUsage, upsertProjectUsage } from '../lib/storage/projectUsageStorage';
 import { loadRecentProjects, saveRecentProjects, upsertRecentProject } from '../lib/storage/recentProjectsStorage';
 import { getActiveTabUrl } from '../lib/tabs/currentTab';
 import { matchProjectPathFromTab } from '../lib/tabs/projectMatcher';
-import type { GitLabBranch, GitLabConfig, GitLabProject, RecentProject } from '../lib/types';
-import { groupProjects } from '../lib/ui/groupProjects';
+import type { GitLabBranch, GitLabConfig, GitLabProject, ProjectUsageRecord, RecentProject } from '../lib/types';
+import { rankBranches } from '../lib/ui/branchSearch';
+import { rankProjects } from '../lib/ui/projectSearch';
 import './app.css';
 import { BranchSelect } from './components/BranchSelect';
 import { ConnectionForm } from './components/ConnectionForm';
@@ -24,6 +26,25 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : '发生了未知错误。';
 }
 
+function getMostRecentProjectForBaseUrl(
+  projects: GitLabProject[],
+  recentProjects: RecentProject[],
+  baseUrl: string
+): GitLabProject | null {
+  for (const recentProject of recentProjects) {
+    if (recentProject.gitlabBaseUrl !== baseUrl) {
+      continue;
+    }
+
+    const matchedProject = projects.find((project) => project.id === recentProject.projectId);
+    if (matchedProject) {
+      return matchedProject;
+    }
+  }
+
+  return null;
+}
+
 export function App() {
   const [baseUrl, setBaseUrl] = useState('');
   const [token, setToken] = useState('');
@@ -34,20 +55,29 @@ export function App() {
   const [selectedBranchName, setSelectedBranchName] = useState('');
   const [latestCommitHash, setLatestCommitHash] = useState(EMPTY_HASH);
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
+  const [projectUsageRecords, setProjectUsageRecords] = useState<ProjectUsageRecord[]>([]);
   const [connectionErrorMessage, setConnectionErrorMessage] = useState<string | null>(null);
   const [branchErrorMessage, setBranchErrorMessage] = useState<string | null>(null);
   const [hasFetchedProjects, setHasFetchedProjects] = useState(false);
   const [currentTabMatchState, setCurrentTabMatchState] = useState<CurrentTabMatchState>('unknown');
+  const [matchedProjectId, setMatchedProjectId] = useState<number | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
+  const [projectQuery, setProjectQuery] = useState('');
+  const [branchQuery, setBranchQuery] = useState('');
   const recentProjectsRef = useRef<RecentProject[]>([]);
+  const projectUsageRef = useRef<ProjectUsageRecord[]>([]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function initialize() {
       try {
-        const [storedConfig, storedRecentProjects] = await Promise.all([loadConfig(), loadRecentProjects()]);
+        const [storedConfig, storedRecentProjects, storedProjectUsage] = await Promise.all([
+          loadConfig(),
+          loadRecentProjects(),
+          loadProjectUsage()
+        ]);
 
         if (cancelled) {
           return;
@@ -61,6 +91,8 @@ export function App() {
 
         recentProjectsRef.current = storedRecentProjects;
         setRecentProjects(storedRecentProjects);
+        projectUsageRef.current = storedProjectUsage;
+        setProjectUsageRecords(storedProjectUsage);
       } catch (error) {
         if (!cancelled) {
           setConnectionErrorMessage(getErrorMessage(error));
@@ -86,6 +118,7 @@ export function App() {
 
       setSelectedProjectId(String(project.id));
       setBranches(nextBranches);
+      setBranchQuery('');
       setSelectedBranchName(initialBranch?.name ?? '');
       setLatestCommitHash(initialBranch?.commitId ?? EMPTY_HASH);
 
@@ -103,6 +136,17 @@ export function App() {
       recentProjectsRef.current = nextRecentProjects;
       setRecentProjects(nextRecentProjects);
       await saveRecentProjects(nextRecentProjects);
+
+      const nextProjectUsage = upsertProjectUsage(projectUsageRef.current, {
+        gitlabBaseUrl: config.baseUrl,
+        projectId: project.id,
+        projectName: project.name,
+        usedAt: new Date().toISOString()
+      });
+
+      projectUsageRef.current = nextProjectUsage;
+      setProjectUsageRecords(nextProjectUsage);
+      await saveProjectUsage(nextProjectUsage);
     } catch (error) {
       setBranchErrorMessage(getErrorMessage(error));
     } finally {
@@ -145,21 +189,47 @@ export function App() {
       let nextSelectedBranchName = '';
       let nextLatestCommitHash = EMPTY_HASH;
       let nextCurrentTabMatchState: CurrentTabMatchState = activeTabUrl ? 'mismatched' : 'unknown';
+      let nextMatchedProjectId: number | null = null;
 
-      if (matchedProject) {
+      const defaultProject = getMostRecentProjectForBaseUrl(loadedProjects, recentProjectsRef.current, nextConfig.baseUrl);
+
+      if (defaultProject) {
         setIsLoadingBranches(true);
 
         try {
-          nextBranches = await client.fetchBranches(matchedProject.id);
+          nextBranches = await client.fetchBranches(defaultProject.id);
         } finally {
           setIsLoadingBranches(false);
         }
 
         const initialBranch = nextBranches[0] ?? null;
-        nextSelectedProjectId = String(matchedProject.id);
+        nextSelectedProjectId = String(defaultProject.id);
         nextSelectedBranchName = initialBranch?.name ?? '';
         nextLatestCommitHash = initialBranch?.commitId ?? EMPTY_HASH;
-        nextCurrentTabMatchState = 'matched';
+        nextCurrentTabMatchState = matchedProject ? 'matched' : nextCurrentTabMatchState;
+        nextMatchedProjectId = matchedProject?.id ?? null;
+
+        const nextRecentProjects = upsertRecentProject(recentProjectsRef.current, {
+          gitlabBaseUrl: nextConfig.baseUrl,
+          projectId: defaultProject.id,
+          projectName: defaultProject.name,
+          lastUsedAt: new Date().toISOString()
+        });
+
+        recentProjectsRef.current = nextRecentProjects;
+        setRecentProjects(nextRecentProjects);
+        await saveRecentProjects(nextRecentProjects);
+
+        const nextProjectUsage = upsertProjectUsage(projectUsageRef.current, {
+          gitlabBaseUrl: nextConfig.baseUrl,
+          projectId: defaultProject.id,
+          projectName: defaultProject.name,
+          usedAt: new Date().toISOString()
+        });
+
+        projectUsageRef.current = nextProjectUsage;
+        setProjectUsageRecords(nextProjectUsage);
+        await saveProjectUsage(nextProjectUsage);
       } else if (loadedProjects.length === 0) {
         nextCurrentTabMatchState = 'unknown';
       }
@@ -170,8 +240,11 @@ export function App() {
       setConnectedConfig(nextConfig);
       setHasFetchedProjects(true);
       setCurrentTabMatchState(nextCurrentTabMatchState);
+      setMatchedProjectId(nextMatchedProjectId);
       setProjects(loadedProjects);
       setBranches(nextBranches);
+      setProjectQuery('');
+      setBranchQuery('');
       setSelectedProjectId(nextSelectedProjectId);
       setSelectedBranchName(nextSelectedBranchName);
       setLatestCommitHash(nextLatestCommitHash);
@@ -187,6 +260,7 @@ export function App() {
     if (projectId === '') {
       setSelectedProjectId('');
       setBranches([]);
+      setBranchQuery('');
       setSelectedBranchName('');
       setLatestCommitHash(EMPTY_HASH);
       setBranchErrorMessage(null);
@@ -212,7 +286,20 @@ export function App() {
     setLatestCommitHash(selectedBranch?.commitId ?? EMPTY_HASH);
   }
 
-  const projectGroups = groupProjects(projects, recentProjects, connectedConfig?.baseUrl ?? '');
+  const recentProjectIds = new Set(
+    recentProjects
+      .filter((project) => project.gitlabBaseUrl === (connectedConfig?.baseUrl ?? ''))
+      .map((project) => project.projectId)
+  );
+  const rankedProjects = rankProjects(projects, projectUsageRecords, {
+    matchedProjectId,
+    query: projectQuery,
+    baseUrl: connectedConfig?.baseUrl ?? ''
+  }).map((project) => ({
+    ...project,
+    badge: recentProjectIds.has(project.id) ? '最近使用' : undefined
+  }));
+  const rankedBranches = rankBranches(branches, branchQuery);
   let connectionStatusMessage: string | null = null;
   let connectionStatusTone: StatusNoticeTone = 'info';
   if (connectionErrorMessage) {
@@ -286,9 +373,11 @@ export function App() {
           statusTone={connectionStatusTone}
         />
         <ProjectSelect
-          groups={projectGroups}
+          projects={rankedProjects}
           value={selectedProjectId}
-          disabled={isConnecting || projectGroups.length === 0}
+          query={projectQuery}
+          disabled={isConnecting || projects.length === 0}
+          onQueryChange={setProjectQuery}
           onChange={(projectId) => {
             void handleProjectChange(projectId);
           }}
@@ -296,15 +385,17 @@ export function App() {
           statusTone={projectStatusTone}
         />
         <BranchSelect
-          branches={branches}
+          branches={rankedBranches}
           value={selectedBranchName}
+          query={branchQuery}
           disabled={selectedProjectId === '' || isLoadingBranches || branches.length === 0}
+          onQueryChange={setBranchQuery}
           onChange={handleBranchChange}
           statusMessage={branchStatusMessage}
           statusTone={branchStatusTone}
         />
         <ResultSummary
-          projectWebUrl={selectedProject?.httpCloneUrl ?? ''}
+          projectCloneUrl={selectedProject?.httpCloneUrl ?? ''}
           selectedBranchName={selectedBranchName}
           latestCommitHash={latestCommitHash}
         />

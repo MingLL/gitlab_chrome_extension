@@ -4,7 +4,7 @@ import { copyText } from '../../lib/ui/copy';
 import { StatusNotice } from './StatusNotice';
 
 type ResultSummaryProps = {
-  projectWebUrl: string;
+  projectCloneUrl: string;
   selectedBranchName: string;
   latestCommitHash: string;
   statusMessage?: string | null;
@@ -13,16 +13,21 @@ type ResultSummaryProps = {
 const COPY_FEEDBACK_MS = 1500;
 const EMPTY_VALUE = '尚未加载';
 
-type CopyFieldKey = 'url' | 'branch' | 'hash';
+type CopyFieldKey = 'url' | 'urlWithoutGit' | 'branch' | 'hash';
+
+function getCloneUrlWithoutGitSuffix(projectCloneUrl: string): string {
+  return projectCloneUrl.endsWith('.git') ? projectCloneUrl.slice(0, -4) : projectCloneUrl;
+}
 
 export function ResultSummary({
-  projectWebUrl,
+  projectCloneUrl,
   selectedBranchName,
   latestCommitHash,
   statusMessage
 }: ResultSummaryProps) {
   const [copiedField, setCopiedField] = useState<CopyFieldKey | null>(null);
   const resetTimeoutRef = useRef<number | null>(null);
+  const projectCloneUrlWithoutGitSuffix = getCloneUrlWithoutGitSuffix(projectCloneUrl);
 
   useEffect(() => {
     return () => {
@@ -59,16 +64,26 @@ export function ResultSummary({
         <div>
           <dt>仓库链接</dt>
           <dd className="summary-list__value-row">
-            <span>{projectWebUrl || EMPTY_VALUE}</span>
+            <span>{projectCloneUrl || EMPTY_VALUE}</span>
             <button
               type="button"
               className="button"
-              disabled={projectWebUrl === ''}
+              disabled={projectCloneUrl === ''}
               onClick={() => {
-                void handleCopy('url', projectWebUrl);
+                void handleCopy('url', projectCloneUrl);
               }}
             >
               {copiedField === 'url' ? '已复制' : '复制链接'}
+            </button>
+            <button
+              type="button"
+              className="button"
+              disabled={projectCloneUrl === ''}
+              onClick={() => {
+                void handleCopy('urlWithoutGit', projectCloneUrlWithoutGitSuffix);
+              }}
+            >
+              {copiedField === 'urlWithoutGit' ? '已复制' : '复制无 .git 链接'}
             </button>
           </dd>
         </div>

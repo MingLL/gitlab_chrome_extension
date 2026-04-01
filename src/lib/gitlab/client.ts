@@ -20,6 +20,7 @@ type GitLabBranchResponse = {
   name: string;
   commit: {
     id: string;
+    committed_date?: string;
   };
 };
 
