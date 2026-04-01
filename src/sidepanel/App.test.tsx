@@ -2,6 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import manifest from '../../manifest.config';
+import packageJson from '../../package.json';
 import * as configStorage from '../lib/storage/configStorage';
 import { loadConfig, requestHostPermission, saveConfig } from '../lib/storage/configStorage';
 import * as recentProjectsStorage from '../lib/storage/recentProjectsStorage';
@@ -106,6 +107,10 @@ describe('manifest configuration', () => {
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.permissions).toContain('sidePanel');
     expect(manifest.minimum_chrome_version).toBe('114');
+  });
+
+  it('uses the package version for the extension manifest', () => {
+    expect(manifest.version).toBe(packageJson.version);
   });
 
   it('points the unpacked extension at the built side panel and service worker', () => {

@@ -2,13 +2,15 @@
 
 ## Branch policy
 
-Before making any code, documentation, configuration, or other repository change, you must first create and switch to a new branch related to that change.
+Before making any code, feature, fix, configuration, workflow, or other non-documentation repository change, you must first create and switch to a new branch related to that change.
 
 Rules:
 - do not start implementation, editing, committing, or pushing on the current branch before creating the new branch
 - branch names should be concise, descriptive, and related to the task
 - prefer one logical change per branch
 - if the user explicitly asks to work on a specific existing branch, follow the user's instruction
+- if the change is a documentation-only update and it is directly related to the current branch scope, do not create an extra branch
+- if the change is a documentation-only update but unrelated to the current branch scope, create a separate branch for it
 
 ## Commit policy
 
@@ -27,6 +29,7 @@ All commit messages must follow this format:
 Rules:
 - type and scope must be lowercase
 - subject must be concise, specific, and written in Chinese
+- all git commit messages must use Chinese subjects, including docs, ci, chore, and revert commits
 - do not end subject with a period
 - subject should describe the actual code change, not vague intent
 - one commit should contain one logical change only
