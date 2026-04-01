@@ -5,7 +5,14 @@
     ".": {
       "release-type": "node",
       "component": "gitlab-chrome-extension",
-      "changelog-path": "CHANGELOG.md"
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "manifest.base.json",
+          "jsonpath": "$.version"
+        }
+      ]
     }
   }
 }
