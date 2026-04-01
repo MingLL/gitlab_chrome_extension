@@ -1,0 +1,103 @@
+name: Create Release From Dev
+
+"on":
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, for example v1.0.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag format
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag must match v<major>.<minor>.<patch>, for example v1.0.0" >&2
+            exit 1
+          fi
+
+      - name: Check release branch, tag, and PR availability
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag }}
+        run: |
+          RELEASE_BRANCH="release/$TAG"
+
+          git fetch origin dev main --prune
+
+          if git ls-remote --exit-code --heads origin "$RELEASE_BRANCH" >/dev/null 2>&1; then
+            echo "Remote branch $RELEASE_BRANCH already exists" >&2
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "Remote tag $TAG already exists" >&2
+            exit 1
+          fi
+
+          if [[ "$(gh pr list --base main --head "$RELEASE_BRANCH" --state all --json number --jq 'length')" != "0" ]]; then
+            echo "A PR from $RELEASE_BRANCH to main already exists" >&2
+            exit 1
+          fi
+
+      - name: Create release branch and tag from dev
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+        run: |
+          RELEASE_BRANCH="release/$TAG"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "$RELEASE_BRANCH" origin/dev
+          git tag -a "$TAG" -m "$TAG"
+
+      - name: Push release branch and tag
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+        run: |
+          RELEASE_BRANCH="release/$TAG"
+
+          git push origin "refs/heads/$RELEASE_BRANCH:refs/heads/$RELEASE_BRANCH"
+          git push origin "refs/tags/$TAG:refs/tags/$TAG"
+
+      - name: Create release pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag }}
+        run: |
+          RELEASE_BRANCH="release/$TAG"
+          PR_BODY_FILE="$(mktemp)"
+
+          printf '%s\n' \
+            '## Summary' \
+            "- create release branch \`$RELEASE_BRANCH\` from \`dev\`" \
+            "- create release tag \`$TAG\`" \
+            "- prepare to merge release \`$TAG\` into \`main\`" \
+            '' \
+            '## Validation' \
+            '- tag format validated in workflow' \
+            '- confirmed release branch, tag, and PR do not already exist' \
+            '- pushed release branch and tag to origin' \
+            > "$PR_BODY_FILE"
+
+          gh pr create \
+            --base main \
+            --head "$RELEASE_BRANCH" \
+            --title "Release $TAG" \
+            --body-file "$PR_BODY_FILE"
