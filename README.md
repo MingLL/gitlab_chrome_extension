@@ -198,6 +198,14 @@ npm run build
 3. 合并到 `main` 后，GitHub Actions 会运行 `release-please`
 4. `release-please` 会自动创建或更新发版 PR，并根据提交历史维护版本号与变更日志
 5. 合并发版 PR 后，GitHub 会自动创建 tag、GitHub Release，并同步更新 `package.json` / `package-lock.json` 中的版本号
+6. PR 合并后，GitHub 会自动删除对应的功能分支，避免远端分支长期堆积
+
+### 分支约定
+
+- 长期保留分支默认只有 `main`
+- 日常开发使用短期分支，例如 `feat/*`、`fix/*`、`docs/*`、`chore/*`
+- 主题分支合并后立即删除，不保留历史功能分支
+- 当前发版模式下不再维护 `release/*` 远端分支，发布以 `release-please` 生成的发版 PR、tag 和 GitHub Release 为准
 
 建议：
 
