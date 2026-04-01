@@ -197,8 +197,9 @@ npm run build
 2. 提交信息遵循 `feat(scope): ...`、`fix(scope): ...` 这类规范格式
 3. 合并到 `main` 后，GitHub Actions 会运行 `release-please`
 4. `release-please` 会自动创建或更新发版 PR，并根据提交历史维护版本号与变更日志
-5. 合并发版 PR 后，GitHub 会自动创建 tag、GitHub Release，并同步更新 `package.json` / `package-lock.json` 中的版本号
-6. PR 合并后，GitHub 会自动删除对应的功能分支，避免远端分支长期堆积
+5. 仓库启用 `Allow auto-merge` 后，`release-please` 生成的发版 PR 会在校验通过后自动合并
+6. 合并发版 PR 后，GitHub 会自动创建 tag、GitHub Release，并同步更新 `package.json` / `package-lock.json` 中的版本号
+7. PR 合并后，GitHub 会自动删除对应的功能分支，避免远端分支长期堆积
 
 ### 分支约定
 
