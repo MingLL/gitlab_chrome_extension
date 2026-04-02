@@ -1,6 +1,6 @@
 name: Auto Merge Release PR
 
-"on":
+on:
   pull_request_target:
     types:
       - opened
@@ -14,7 +14,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: auto-merge-release-pr-${{ github.event.pull_request.number }}
+  group: "auto-merge-release-pr-${{ github.event.pull_request.number }}"
   cancel-in-progress: true
 
 jobs:
