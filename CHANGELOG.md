@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/MingLL/gitlab_chrome_extension/compare/gitlab-chrome-extension-v0.2.1...gitlab-chrome-extension-v0.2.2) (2026-04-02)
+
+
+### Bug Fixes
+
+* **ci:** 修复自动合并工作流YAML语法错误 ([#16](https://github.com/MingLL/gitlab_chrome_extension/issues/16)) ([49c89ff](https://github.com/MingLL/gitlab_chrome_extension/commit/49c89ff8744869c80432e425ebee20ba2dcfd305))
+
 ## [0.2.1](https://github.com/MingLL/gitlab_chrome_extension/compare/gitlab-chrome-extension-v0.2.0...gitlab-chrome-extension-v0.2.1) (2026-04-01)
 
 
