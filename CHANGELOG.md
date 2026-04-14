@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/MingLL/gitlab_chrome_extension/compare/gitlab-chrome-extension-v0.3.0...gitlab-chrome-extension-v0.4.0) (2026-04-14)
+
+
+### Features
+
+* **ui:** 改进侧边栏仓库与分支选择交互 ([#21](https://github.com/MingLL/gitlab_chrome_extension/issues/21)) ([2988e4e](https://github.com/MingLL/gitlab_chrome_extension/commit/2988e4e3c6d3cc897975dd4e41193f830dc687b5))
+
 ## [0.3.0](https://github.com/MingLL/gitlab_chrome_extension/compare/gitlab-chrome-extension-v0.2.2...gitlab-chrome-extension-v0.3.0) (2026-04-14)
 
 
