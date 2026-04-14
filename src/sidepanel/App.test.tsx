@@ -1039,6 +1039,47 @@ describe('side panel app shell', () => {
     expect(await screen.findByText('自动填入失败：未找到仓库类型下拉框')).toBeInTheDocument();
   });
 
+  it('clears the autofill status after switching to another project', async () => {
+    mockGitLabConnectSequence({
+      projects: [
+        {
+          id: 1,
+          name: 'Alpha',
+          path_with_namespace: 'group/alpha',
+          web_url: 'https://gitlab.example.com/group/alpha',
+          http_url_to_repo: 'https://gitlab.example.com/group/alpha.git',
+        },
+        {
+          id: 2,
+          name: 'Beta',
+          path_with_namespace: 'group/beta',
+          web_url: 'https://gitlab.example.com/group/beta',
+          http_url_to_repo: 'https://gitlab.example.com/group/beta.git',
+        }
+      ],
+      branchResponses: [
+        [{ name: 'main', commit: { id: 'abcdef123456', committed_date: '2026-03-27T09:30:00Z' } }],
+        [{ name: 'release', commit: { id: 'fedcba654321', committed_date: '2026-03-28T09:30:00Z' } }]
+      ],
+    });
+    vi.mocked(chrome.tabs.query).mockResolvedValue([
+      { id: 7, url: 'https://gitlab.example.com/group/alpha/-/tree/main' } as chrome.tabs.Tab,
+    ]);
+    vi.mocked(chrome.scripting.executeScript).mockResolvedValue([
+      { result: { ok: true } } as chrome.scripting.InjectionResult<{ ok: true }>
+    ]);
+
+    await connectApp();
+    await userEvent.click(screen.getByRole('button', { name: '一键填入' }));
+
+    expect(await screen.findByText('已填入 git 链接、分支和 hash')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Beta.*group\/beta/i }));
+
+    expect(await screen.findByRole('button', { name: /release/i })).toBeInTheDocument();
+    expect(screen.queryByText('已填入 git 链接、分支和 hash')).not.toBeInTheDocument();
+  });
+
   it('preselects the most recently used project when the current tab does not match', async () => {
     mockGitLabConnectSequence({
       projects: [

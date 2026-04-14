@@ -161,6 +161,7 @@ export function App() {
     setIsLoadingBranches(false);
     setConnectionErrorMessage(null);
     setBranchErrorMessage(null);
+    setAutofillStatusMessage(null);
 
     try {
       let normalizedBaseUrl: string;
@@ -259,6 +260,8 @@ export function App() {
   }
 
   async function handleProjectChange(projectId: string) {
+    setAutofillStatusMessage(null);
+
     if (projectId === '') {
       setSelectedProjectId('');
       setBranches([]);
