@@ -19,6 +19,28 @@ function createDeferred<T>() {
   return { promise, resolve };
 }
 
+async function findProjectSelect() {
+  return (await screen.findByRole('combobox', { name: '仓库选择' })) as HTMLSelectElement;
+}
+
+async function findBranchSelect() {
+  return (await screen.findByRole('combobox', { name: '分支选择' })) as HTMLSelectElement;
+}
+
+async function expectSelectedProject(projectId: string, projectName: string) {
+  expect(await findProjectSelect()).toHaveValue(projectId);
+  expect(screen.getAllByText(projectName).length).toBeGreaterThan(0);
+}
+
+async function expectSelectedBranch(branchName: string) {
+  expect(await findBranchSelect()).toHaveValue(branchName);
+  expect(screen.getAllByText(branchName).length).toBeGreaterThan(0);
+}
+
+async function selectProject(projectId: string) {
+  await userEvent.selectOptions(await findProjectSelect(), projectId);
+}
+
 function mockGitLabConnectSequence(input?: {
   projects?: Array<{
     id: number;
@@ -95,7 +117,7 @@ async function connectApp(input?: {
   await userEvent.type(screen.getByLabelText(/token/i), 'secret');
   await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
-  expect(await screen.findByRole('button', { name: /Alpha.*group\/alpha/i })).toBeInTheDocument();
+  await findProjectSelect();
 }
 
 afterEach(() => {
@@ -393,9 +415,9 @@ describe('side panel app shell', () => {
 
     expect(await screen.findByText('当前标签页与已配置的 GitLab 不匹配，请手动选择仓库。')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: /Alpha.*group\/alpha/i }));
+    await selectProject('1');
 
-    expect(await screen.findByRole('button', { name: /main/i })).toBeInTheDocument();
+    await expectSelectedBranch('main');
     expect(screen.queryByText('当前标签页与已配置的 GitLab 不匹配，请手动选择仓库。')).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: '清空仓库选择' }));
@@ -441,9 +463,9 @@ describe('side panel app shell', () => {
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
     await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
-    expect(await screen.findByRole('button', { name: /Alpha.*group\/alpha/i })).toBeInTheDocument();
+    expect(await findProjectSelect()).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: /Alpha.*group\/alpha/i }));
+    await selectProject('1');
 
     expect(await screen.findByText('正在加载分支...')).toBeInTheDocument();
 
@@ -483,8 +505,8 @@ describe('side panel app shell', () => {
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
     await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
-    expect(await screen.findByRole('button', { name: /Alpha.*group\/alpha/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /main/i })).not.toBeInTheDocument();
+    expect(await findProjectSelect()).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: '分支选择' })).not.toBeInTheDocument();
     expect(screen.getByText('请先选择仓库后再加载分支。')).toBeInTheDocument();
     expect(screen.getAllByText('尚未加载')).toHaveLength(3);
   });
@@ -518,7 +540,7 @@ describe('side panel app shell', () => {
     await userEvent.type(screen.getByLabelText(/gitlab 地址/i), 'https://gitlab.example.com');
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
     await userEvent.click(screen.getByRole('button', { name: '连接' }));
-    await userEvent.click(screen.getByRole('button', { name: /Beta.*group\/beta/i }));
+    await selectProject('2');
 
     expect(saveRecentProjectsSpy).toHaveBeenCalledWith(
       expect.arrayContaining([
@@ -563,20 +585,14 @@ describe('side panel app shell', () => {
 
     await connectApp();
 
-    const branchButtons = screen.getAllByRole('button').filter((element) =>
-      element.className.includes('search-list__item') &&
-      /feature\/login|release\/1\.2\.0|main/.test(element.textContent ?? '')
-    );
-    expect(branchButtons.map((element) => element.textContent)).toEqual([
-      expect.stringContaining('release/1.2.0'),
-      expect.stringContaining('main'),
-      expect.stringContaining('feature/login')
-    ]);
+    const branchSelect = await findBranchSelect();
+    const branchOptions = Array.from(branchSelect.options).map((option) => option.text);
+    expect(branchOptions).toEqual(['release/1.2.0', 'main', 'feature/login']);
 
     await userEvent.type(screen.getByLabelText('分支搜索'), 'release');
 
-    expect(screen.getByRole('button', { name: /release\/1\.2\.0/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /feature\/login/i })).not.toBeInTheDocument();
+    expect(await findBranchSelect()).toHaveValue('release/1.2.0');
+    expect(Array.from((await findBranchSelect()).options).map((option) => option.text)).toEqual(['release/1.2.0']);
   });
 
   it('keeps the existing loaded state when a later connect attempt fails', async () => {
@@ -654,15 +670,15 @@ describe('side panel app shell', () => {
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
     await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
-    expect(await screen.findByRole('button', { name: /Alpha.*group\/alpha/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /main/i })).toBeInTheDocument();
+    await expectSelectedProject('1', 'Alpha');
+    await expectSelectedBranch('main');
     expect(screen.getByText('abcdef123456')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
     expect(await screen.findByText('连接失败：Host permission request was denied.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Alpha.*group\/alpha/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /main/i })).toBeInTheDocument();
+    await expectSelectedProject('1', 'Alpha');
+    await expectSelectedBranch('main');
     expect(screen.getByText('abcdef123456')).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(5);
   });
@@ -721,7 +737,7 @@ describe('side panel app shell', () => {
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
     await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
-    expect(await screen.findByRole('button', { name: /Alpha.*group\/alpha/i })).toBeInTheDocument();
+    await expectSelectedProject('1', 'Alpha');
     expect(saveConfigSpy).toHaveBeenCalledTimes(1);
     expect(saveConfigSpy).toHaveBeenLastCalledWith({ baseUrl: 'https://gitlab.example.com', token: 'secret' });
 
@@ -807,15 +823,15 @@ describe('side panel app shell', () => {
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
     await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
-    expect(await screen.findByRole('button', { name: /Alpha.*group\/alpha/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /main/i })).toBeInTheDocument();
+    await expectSelectedProject('1', 'Alpha');
+    await expectSelectedBranch('main');
     expect(screen.getByText('abcdef123456')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
     expect(await screen.findByText('连接失败：Branch lookup failed.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Alpha.*group\/alpha/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /main/i })).toBeInTheDocument();
+    await expectSelectedProject('1', 'Alpha');
+    await expectSelectedBranch('main');
     expect(screen.getByText('abcdef123456')).toBeInTheDocument();
   });
 
@@ -875,15 +891,15 @@ describe('side panel app shell', () => {
     await userEvent.type(screen.getByLabelText(/token/i), 'secret');
     await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
-    expect(await screen.findByRole('button', { name: /Alpha.*group\/alpha/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /main/i })).toBeInTheDocument();
+    await expectSelectedProject('1', 'Alpha');
+    await expectSelectedBranch('main');
     expect(screen.getByText('abcdef123456')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: /Beta.*group\/beta/i }));
+    await selectProject('2');
 
     expect(await screen.findByText('Branch lookup failed.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Alpha.*group\/alpha/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /main/i })).toBeInTheDocument();
+    await expectSelectedProject('1', 'Alpha');
+    await expectSelectedBranch('main');
     expect(screen.getByText('abcdef123456')).toBeInTheDocument();
   });
 
@@ -1074,9 +1090,9 @@ describe('side panel app shell', () => {
 
     expect(await screen.findByText('已填入 git 链接、分支和 hash')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: /Beta.*group\/beta/i }));
+    await selectProject('2');
 
-    expect(await screen.findByRole('button', { name: /release/i })).toBeInTheDocument();
+    await expectSelectedBranch('release');
     expect(screen.queryByText('已填入 git 链接、分支和 hash')).not.toBeInTheDocument();
   });
 
@@ -1110,10 +1126,19 @@ describe('side panel app shell', () => {
       { url: 'https://example.com/outside-gitlab' } as chrome.tabs.Tab,
     ]);
 
-    await connectApp();
+    await connectApp({
+      recentProjects: [
+        {
+          gitlabBaseUrl: 'https://gitlab.example.com',
+          projectId: 2,
+          projectName: 'Beta',
+          lastUsedAt: '2026-03-30T09:30:00.000Z'
+        }
+      ]
+    });
 
-    expect(screen.getByRole('button', { name: /Beta.*group\/beta/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /release/i })).toBeInTheDocument();
+    await expectSelectedProject('2', 'Beta');
+    await expectSelectedBranch('release');
     expect(screen.getByText('fedcba654321')).toBeInTheDocument();
   });
 
@@ -1147,10 +1172,19 @@ describe('side panel app shell', () => {
       { url: 'https://gitlab.example.com/group/alpha/-/tree/main' } as chrome.tabs.Tab,
     ]);
 
-    await connectApp();
+    await connectApp({
+      recentProjects: [
+        {
+          gitlabBaseUrl: 'https://gitlab.example.com',
+          projectId: 2,
+          projectName: 'Beta',
+          lastUsedAt: '2026-03-30T09:30:00.000Z'
+        }
+      ]
+    });
 
-    expect(screen.getByRole('button', { name: /Beta.*group\/beta/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /release/i })).toBeInTheDocument();
+    await expectSelectedProject('2', 'Beta');
+    await expectSelectedBranch('release');
     expect(screen.getByText('fedcba654321')).toBeInTheDocument();
   });
 });
