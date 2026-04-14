@@ -6,6 +6,7 @@ import { loadConfig, requestHostPermission, saveConfig } from '../lib/storage/co
 import { loadProjectUsage, saveProjectUsage, upsertProjectUsage } from '../lib/storage/projectUsageStorage';
 import { loadRecentProjects, saveRecentProjects, upsertRecentProject } from '../lib/storage/recentProjectsStorage';
 import { getActiveTabUrl } from '../lib/tabs/currentTab';
+import { fillReleaseFormInActiveTab } from '../lib/tabs/fillReleaseForm';
 import { matchProjectPathFromTab } from '../lib/tabs/projectMatcher';
 import type { GitLabBranch, GitLabConfig, GitLabProject, ProjectUsageRecord, RecentProject } from '../lib/types';
 import { rankBranches } from '../lib/ui/branchSearch';
@@ -65,6 +66,7 @@ export function App() {
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
   const [projectQuery, setProjectQuery] = useState('');
   const [branchQuery, setBranchQuery] = useState('');
+  const [autofillStatusMessage, setAutofillStatusMessage] = useState<string | null>(null);
   const recentProjectsRef = useRef<RecentProject[]>([]);
   const projectUsageRef = useRef<ProjectUsageRecord[]>([]);
 
@@ -281,9 +283,25 @@ export function App() {
 
   function handleBranchChange(branchName: string) {
     setSelectedBranchName(branchName);
+    setAutofillStatusMessage(null);
 
     const selectedBranch = branches.find((branch) => branch.name === branchName);
     setLatestCommitHash(selectedBranch?.commitId ?? EMPTY_HASH);
+  }
+
+  async function handleAutofill() {
+    const selectedProject = projects.find((project) => String(project.id) === selectedProjectId) ?? null;
+    if (!selectedProject || selectedBranchName === '' || latestCommitHash === EMPTY_HASH) {
+      return;
+    }
+
+    const result = await fillReleaseFormInActiveTab({
+      repositoryUrl: selectedProject.httpCloneUrl,
+      branch: selectedBranchName,
+      commitHash: latestCommitHash
+    });
+
+    setAutofillStatusMessage(result.ok ? '已填入 git 链接、分支和 hash' : `自动填入失败：${result.reason}`);
   }
 
   const recentProjectIds = new Set(
@@ -351,6 +369,8 @@ export function App() {
     branchStatusTone = 'warning';
   }
   const selectedProject = projects.find((project) => String(project.id) === selectedProjectId) ?? null;
+  const isAutofillDisabled =
+    selectedProject?.httpCloneUrl == null || selectedProject.httpCloneUrl === '' || selectedBranchName === '' || latestCommitHash === EMPTY_HASH;
 
   return (
     <main className="sidepanel">
@@ -398,6 +418,11 @@ export function App() {
           projectCloneUrl={selectedProject?.httpCloneUrl ?? ''}
           selectedBranchName={selectedBranchName}
           latestCommitHash={latestCommitHash}
+          statusMessage={autofillStatusMessage}
+          isAutofillDisabled={isAutofillDisabled}
+          onAutofill={() => {
+            void handleAutofill();
+          }}
         />
       </div>
     </main>

@@ -8,6 +8,8 @@ type ResultSummaryProps = {
   selectedBranchName: string;
   latestCommitHash: string;
   statusMessage?: string | null;
+  onAutofill?: () => void;
+  isAutofillDisabled?: boolean;
 };
 
 const COPY_FEEDBACK_MS = 1500;
@@ -23,7 +25,9 @@ export function ResultSummary({
   projectCloneUrl,
   selectedBranchName,
   latestCommitHash,
-  statusMessage
+  statusMessage,
+  onAutofill,
+  isAutofillDisabled = true
 }: ResultSummaryProps) {
   const [copiedField, setCopiedField] = useState<CopyFieldKey | null>(null);
   const resetTimeoutRef = useRef<number | null>(null);
@@ -59,6 +63,17 @@ export function ResultSummary({
         </h2>
         <p className="panel-section__description">复制当前仓库链接、分支和最新提交 hash。</p>
       </div>
+
+      <button
+        type="button"
+        className="button"
+        disabled={isAutofillDisabled}
+        onClick={() => {
+          onAutofill?.();
+        }}
+      >
+        一键填入
+      </button>
 
       <dl className="summary-list">
         <div>

@@ -106,6 +106,7 @@ describe('manifest configuration', () => {
   it('uses Manifest V3 side panel settings', () => {
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.permissions).toContain('sidePanel');
+    expect(manifest.permissions).toContain('scripting');
     expect(manifest.minimum_chrome_version).toBe('114');
   });
 
@@ -229,6 +230,7 @@ describe('side panel app shell', () => {
     expect(screen.getByRole('heading', { name: '分支' })).toBeInTheDocument();
     expect(screen.getByText('Hash 信息')).toBeInTheDocument();
     expect(screen.getByText('尚未配置，请输入 GitLab 地址和 Token 后连接。')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '一键填入' })).toBeDisabled();
   });
 
   it('shows connecting and loading-project status messages while a connection is in flight', async () => {
@@ -974,6 +976,67 @@ describe('side panel app shell', () => {
     await new Promise((resolve) => window.setTimeout(resolve, 1600));
 
     expect(screen.getByRole('button', { name: '复制链接' })).toBeInTheDocument();
+  });
+
+  it('autofill button stays disabled until repository, branch, and hash are ready', () => {
+    render(<App />);
+
+    expect(screen.getByRole('button', { name: '一键填入' })).toBeDisabled();
+  });
+
+  it('injects the release form autofill script into the active tab', async () => {
+    mockGitLabConnectSequence({
+      projects: [
+        {
+          id: 1,
+          name: 'Alpha',
+          path_with_namespace: 'group/alpha',
+          web_url: 'https://gitlab.example.com/group/alpha',
+          http_url_to_repo: 'https://gitlab.example.com/group/alpha.git',
+        },
+      ],
+      branchResponses: [[{ name: 'main', commit: { id: 'abcdef123456', committed_date: '2026-03-27T09:30:00Z' } }]],
+    });
+    vi.mocked(chrome.tabs.query).mockResolvedValue([
+      { id: 7, url: 'https://gitlab.example.com/group/alpha/-/tree/main' } as chrome.tabs.Tab,
+    ]);
+    vi.mocked(chrome.scripting.executeScript).mockResolvedValue([
+      { result: { ok: true } } as chrome.scripting.InjectionResult<{ ok: true }>
+    ]);
+
+    await connectApp();
+    await userEvent.click(screen.getByRole('button', { name: '一键填入' }));
+
+    expect(chrome.scripting.executeScript).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('已填入 git 链接、分支和 hash')).toBeInTheDocument();
+  });
+
+  it('shows the detailed autofill failure reason when injection fails', async () => {
+    mockGitLabConnectSequence({
+      projects: [
+        {
+          id: 1,
+          name: 'Alpha',
+          path_with_namespace: 'group/alpha',
+          web_url: 'https://gitlab.example.com/group/alpha',
+          http_url_to_repo: 'https://gitlab.example.com/group/alpha.git',
+        },
+      ],
+      branchResponses: [[{ name: 'main', commit: { id: 'abcdef123456', committed_date: '2026-03-27T09:30:00Z' } }]],
+    });
+    vi.mocked(chrome.tabs.query).mockResolvedValue([
+      { id: 7, url: 'https://gitlab.example.com/group/alpha/-/tree/main' } as chrome.tabs.Tab,
+    ]);
+    vi.mocked(chrome.scripting.executeScript).mockResolvedValue([
+      {
+        result: { ok: false, reason: '未找到仓库类型下拉框' }
+      } as chrome.scripting.InjectionResult<{ ok: false; reason: string }>
+    ]);
+
+    await connectApp();
+    await userEvent.click(screen.getByRole('button', { name: '一键填入' }));
+
+    expect(await screen.findByText('自动填入失败：未找到仓库类型下拉框')).toBeInTheDocument();
   });
 
   it('preselects the most recently used project when the current tab does not match', async () => {
