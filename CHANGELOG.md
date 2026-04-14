@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/MingLL/gitlab_chrome_extension/compare/gitlab-chrome-extension-v0.2.2...gitlab-chrome-extension-v0.3.0) (2026-04-14)
+
+
+### Features
+
+* **ui:** 切换仓库时重置自动填入状态提示 ([#19](https://github.com/MingLL/gitlab_chrome_extension/issues/19)) ([715c647](https://github.com/MingLL/gitlab_chrome_extension/commit/715c6476ba25c2f1739e655dd922ee2e2072fa42))
+
 ## [0.2.2](https://github.com/MingLL/gitlab_chrome_extension/compare/gitlab-chrome-extension-v0.2.1...gitlab-chrome-extension-v0.2.2) (2026-04-02)
 
 
