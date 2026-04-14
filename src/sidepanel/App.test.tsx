@@ -1090,9 +1090,15 @@ describe('side panel app shell', () => {
 
     expect(await screen.findByText('已填入 git 链接、分支和 hash')).toBeInTheDocument();
 
+<<<<<<< feat/single-recent-select
     await selectProject('2');
 
     await expectSelectedBranch('release');
+=======
+    await userEvent.click(screen.getByRole('button', { name: /Beta.*group\/beta/i }));
+
+    expect(await screen.findByRole('button', { name: /release/i })).toBeInTheDocument();
+>>>>>>> main
     expect(screen.queryByText('已填入 git 链接、分支和 hash')).not.toBeInTheDocument();
   });
 
