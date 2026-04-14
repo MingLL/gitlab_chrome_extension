@@ -14,6 +14,9 @@ vi.stubGlobal('chrome', {
   tabs: {
     query: vi.fn().mockResolvedValue([])
   },
+  scripting: {
+    executeScript: vi.fn().mockResolvedValue([])
+  },
   sidePanel: {
     setPanelBehavior: vi.fn().mockResolvedValue(undefined)
   }
