@@ -49,6 +49,7 @@ export function ProjectSelect({
         query={query}
         disabled={disabled}
         emptyMessage="没有匹配的仓库"
+        selectLabel="仓库选择"
         clearSelectionLabel="清空仓库选择"
         onQueryChange={onQueryChange}
         onSelect={onChange}

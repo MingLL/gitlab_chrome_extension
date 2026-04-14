@@ -14,6 +14,7 @@ type SearchListProps = {
   query: string;
   disabled: boolean;
   emptyMessage: string;
+  selectLabel: string;
   clearSelectionLabel?: string;
   onQueryChange: (query: string) => void;
   onSelect: (value: string) => void;
@@ -27,10 +28,13 @@ export function SearchList({
   query,
   disabled,
   emptyMessage,
+  selectLabel,
   clearSelectionLabel,
   onQueryChange,
   onSelect
 }: SearchListProps) {
+  const selectedItem = items.find((item) => item.value === value) ?? null;
+
   return (
     <div className="search-list">
       <div className="field">
@@ -45,34 +49,42 @@ export function SearchList({
         />
       </div>
 
+      {items.length === 0 ? (
+        <p className="search-list__empty">{emptyMessage}</p>
+      ) : (
+        <div className="field">
+          <label htmlFor={`${label}-select`}>{selectLabel}</label>
+          <select
+            id={`${label}-select`}
+            value={value}
+            disabled={disabled}
+            onChange={(event) => onSelect(event.target.value)}
+          >
+            {items.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.badge ? `${item.title} (${item.badge})` : item.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {clearSelectionLabel && value !== '' ? (
         <button className="button button--secondary" disabled={disabled} type="button" onClick={() => onSelect('')}>
           {clearSelectionLabel}
         </button>
       ) : null}
 
-      <div className="search-list__results" role="list">
-        {items.length === 0 ? (
-          <p className="search-list__empty">{emptyMessage}</p>
-        ) : (
-          items.map((item) => (
-            <button
-              key={item.value}
-              className={`search-list__item${item.value === value ? ' search-list__item--selected' : ''}`}
-              disabled={disabled}
-              type="button"
-              onClick={() => onSelect(item.value)}
-            >
-              <span className="search-list__main">
-                <span className="search-list__title">{item.title}</span>
-                {item.badge ? <span className="search-list__badge">{item.badge}</span> : null}
-              </span>
-              {item.description ? <span className="search-list__description">{item.description}</span> : null}
-              {item.meta ? <span className="search-list__meta">{item.meta}</span> : null}
-            </button>
-          ))
-        )}
-      </div>
+      {selectedItem ? (
+        <div className="search-list__details">
+          <span className="search-list__main">
+            <span className="search-list__title">{selectedItem.title}</span>
+            {selectedItem.badge ? <span className="search-list__badge">{selectedItem.badge}</span> : null}
+          </span>
+          {selectedItem.description ? <span className="search-list__description">{selectedItem.description}</span> : null}
+          {selectedItem.meta ? <span className="search-list__meta">{selectedItem.meta}</span> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

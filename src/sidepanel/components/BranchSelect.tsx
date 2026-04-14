@@ -53,6 +53,7 @@ export function BranchSelect({
         query={query}
         disabled={disabled}
         emptyMessage="没有匹配的分支"
+        selectLabel="分支选择"
         onQueryChange={onQueryChange}
         onSelect={onChange}
       />
