@@ -94,7 +94,7 @@ describe('autofillReleaseForm', () => {
       })
     ).toEqual({
       ok: false,
-      reason: '未找到 git分支 输入框'
+      reason: '定位发布表单字段失败：未找到 git分支 输入框'
     });
   });
 
@@ -109,7 +109,7 @@ describe('autofillReleaseForm', () => {
       })
     ).toEqual({
       ok: false,
-      reason: '未找到仓库类型下拉框'
+      reason: '定位发布表单字段失败：未找到仓库类型下拉框'
     });
   });
 });
