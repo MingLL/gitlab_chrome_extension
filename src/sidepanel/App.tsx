@@ -5,6 +5,7 @@ import { normalizeBaseUrl } from '../lib/gitlab/normalizeBaseUrl';
 import { loadConfig, requestHostPermission, saveConfig } from '../lib/storage/configStorage';
 import { loadProjectUsage, saveProjectUsage, upsertProjectUsage } from '../lib/storage/projectUsageStorage';
 import { loadRecentProjects, saveRecentProjects, upsertRecentProject } from '../lib/storage/recentProjectsStorage';
+import { loadTaskSystemConfig, saveTaskSystemConfig } from '../lib/storage/taskSystemConfigStorage';
 import { getActiveTabUrl } from '../lib/tabs/currentTab';
 import { fillReleaseFormInActiveTab } from '../lib/tabs/fillReleaseForm';
 import { matchProjectPathFromTab } from '../lib/tabs/projectMatcher';
@@ -17,6 +18,7 @@ import { ConnectionForm } from './components/ConnectionForm';
 import { ProjectSelect } from './components/ProjectSelect';
 import { ResultSummary } from './components/ResultSummary';
 import type { StatusNoticeTone } from './components/StatusNotice';
+import { TaskSystemForm } from './components/TaskSystemForm';
 
 const EMPTY_HASH = '尚未加载';
 const NOT_CONFIGURED_MESSAGE = '尚未配置，请输入 GitLab 地址和 Token 后连接。';
@@ -91,18 +93,24 @@ export function App() {
   const [projectQuery, setProjectQuery] = useState('');
   const [branchQuery, setBranchQuery] = useState('');
   const [autofillStatusMessage, setAutofillStatusMessage] = useState<string | null>(null);
+  const [taskSystemBaseUrl, setTaskSystemBaseUrl] = useState('');
+  const [taskSystemLoginName, setTaskSystemLoginName] = useState('');
+  const [taskSystemLoginPwd, setTaskSystemLoginPwd] = useState('');
+  const [taskSystemStatusMessage, setTaskSystemStatusMessage] = useState<string | null>(null);
   const recentProjectsRef = useRef<RecentProject[]>([]);
   const projectUsageRef = useRef<ProjectUsageRecord[]>([]);
+  const hasInitializedTaskSystemConfigRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function initialize() {
       try {
-        const [storedConfig, storedRecentProjects, storedProjectUsage] = await Promise.all([
+        const [storedConfig, storedRecentProjects, storedProjectUsage, storedTaskSystemConfig] = await Promise.all([
           loadConfig(),
           loadRecentProjects(),
-          loadProjectUsage()
+          loadProjectUsage(),
+          loadTaskSystemConfig()
         ]);
 
         if (cancelled) {
@@ -113,6 +121,12 @@ export function App() {
           setBaseUrl(storedConfig.baseUrl);
           setToken(storedConfig.token);
           setConnectedConfig(storedConfig);
+        }
+
+        if (storedTaskSystemConfig) {
+          setTaskSystemBaseUrl(storedTaskSystemConfig.baseUrl);
+          setTaskSystemLoginName(storedTaskSystemConfig.loginName);
+          setTaskSystemLoginPwd(storedTaskSystemConfig.loginPwd);
         }
 
         recentProjectsRef.current = storedRecentProjects;
@@ -131,6 +145,22 @@ export function App() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    if (!hasInitializedTaskSystemConfigRef.current) {
+      return;
+    }
+
+    void saveTaskSystemConfig({
+      baseUrl: taskSystemBaseUrl,
+      loginName: taskSystemLoginName,
+      loginPwd: taskSystemLoginPwd
+    });
+  }, [taskSystemBaseUrl, taskSystemLoginName, taskSystemLoginPwd]);
+
+  useEffect(() => {
+    hasInitializedTaskSystemConfigRef.current = true;
   }, []);
 
   async function loadBranchesForProject(project: GitLabProject, config: GitLabConfig, persistRecent: boolean) {
@@ -344,6 +374,10 @@ export function App() {
     }
   }
 
+  function handleTaskRefresh() {
+    setTaskSystemStatusMessage('任务刷新功能将在 Task 5 实现。');
+  }
+
   const recentProjectIds = new Set(
     recentProjects
       .filter((project) => project.gitlabBaseUrl === (connectedConfig?.baseUrl ?? ''))
@@ -411,6 +445,8 @@ export function App() {
   const selectedProject = projects.find((project) => String(project.id) === selectedProjectId) ?? null;
   const isAutofillDisabled =
     selectedProject?.httpCloneUrl == null || selectedProject.httpCloneUrl === '' || selectedBranchName === '' || latestCommitHash === EMPTY_HASH;
+  const isTaskRefreshDisabled =
+    taskSystemBaseUrl.trim() === '' || taskSystemLoginName.trim() === '' || taskSystemLoginPwd.trim() === '';
 
   return (
     <main className="sidepanel">
@@ -431,6 +467,17 @@ export function App() {
           }}
           statusMessage={connectionStatusMessage}
           statusTone={connectionStatusTone}
+        />
+        <TaskSystemForm
+          baseUrl={taskSystemBaseUrl}
+          loginName={taskSystemLoginName}
+          loginPwd={taskSystemLoginPwd}
+          isRefreshDisabled={isTaskRefreshDisabled}
+          onBaseUrlChange={setTaskSystemBaseUrl}
+          onLoginNameChange={setTaskSystemLoginName}
+          onLoginPwdChange={setTaskSystemLoginPwd}
+          onRefresh={handleTaskRefresh}
+          statusMessage={taskSystemStatusMessage}
         />
         <ProjectSelect
           projects={rankedProjects}

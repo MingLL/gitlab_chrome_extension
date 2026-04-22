@@ -55,6 +55,16 @@
   gap: 12px;
 }
 
+.task-system-form {
+  display: grid;
+  gap: 12px;
+}
+
+.task-system-form__actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
 .field {
   display: grid;
   gap: 6px;

@@ -8,6 +8,7 @@ import { loadConfig, requestHostPermission, saveConfig } from '../lib/storage/co
 import * as recentProjectsStorage from '../lib/storage/recentProjectsStorage';
 import * as projectUsageStorage from '../lib/storage/projectUsageStorage';
 import { loadRecentProjects, saveRecentProjects } from '../lib/storage/recentProjectsStorage';
+import * as taskSystemConfigStorage from '../lib/storage/taskSystemConfigStorage';
 import { App } from './App';
 
 function createDeferred<T>() {
@@ -234,6 +235,8 @@ describe('side panel app shell', () => {
     vi.spyOn(recentProjectsStorage, 'saveRecentProjects').mockResolvedValue(undefined);
     vi.spyOn(projectUsageStorage, 'loadProjectUsage').mockResolvedValue([]);
     vi.spyOn(projectUsageStorage, 'saveProjectUsage').mockResolvedValue(undefined);
+    vi.spyOn(taskSystemConfigStorage, 'loadTaskSystemConfig').mockResolvedValue(null);
+    vi.spyOn(taskSystemConfigStorage, 'saveTaskSystemConfig').mockResolvedValue(undefined);
     vi.mocked(chrome.tabs.query).mockResolvedValue([]);
     vi.stubGlobal('navigator', {
       ...window.navigator,
@@ -248,11 +251,56 @@ describe('side panel app shell', () => {
 
     expect(screen.getByLabelText(/gitlab 地址/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/token/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('任务系统地址')).toBeInTheDocument();
+    expect(screen.getByLabelText('登录账号')).toBeInTheDocument();
+    expect(screen.getByLabelText('登录密码')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '刷新任务' })).toBeDisabled();
     expect(screen.getByRole('heading', { name: '仓库' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '分支' })).toBeInTheDocument();
     expect(screen.getByText('Hash 信息')).toBeInTheDocument();
     expect(screen.getByText('尚未配置，请输入 GitLab 地址和 Token 后连接。')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '一键填入' })).toBeDisabled();
+  });
+
+  it('loads saved task system config during initialization', async () => {
+    vi.mocked(taskSystemConfigStorage.loadTaskSystemConfig).mockResolvedValueOnce({
+      baseUrl: 'http://10.254.239.10:10086',
+      loginName: 'liminglei',
+      loginPwd: 'secret',
+    });
+
+    render(<App />);
+
+    expect(await screen.findByDisplayValue('http://10.254.239.10:10086')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('liminglei')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('secret')).toBeInTheDocument();
+  });
+
+  it('persists task system config edits from the form', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.type(screen.getByLabelText('任务系统地址'), 'http://10.254.239.10:10086');
+    await user.type(screen.getByLabelText('登录账号'), 'liminglei');
+    await user.type(screen.getByLabelText('登录密码'), 'secret');
+
+    expect(taskSystemConfigStorage.saveTaskSystemConfig).toHaveBeenLastCalledWith({
+      baseUrl: 'http://10.254.239.10:10086',
+      loginName: 'liminglei',
+      loginPwd: 'secret',
+    });
+  });
+
+  it('wires the refresh button callback from the task system form back into the app', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.type(screen.getByLabelText('任务系统地址'), 'http://10.254.239.10:10086');
+    await user.type(screen.getByLabelText('登录账号'), 'liminglei');
+    await user.type(screen.getByLabelText('登录密码'), 'secret');
+    await user.click(screen.getByRole('button', { name: '刷新任务' }));
+
+    expect(await screen.findByText('任务刷新功能将在 Task 5 实现。')).toBeInTheDocument();
   });
 
   it('shows connecting and loading-project status messages while a connection is in flight', async () => {
