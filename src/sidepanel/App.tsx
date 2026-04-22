@@ -27,6 +27,30 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : '发生了未知错误。';
 }
 
+function getAutofillPrecheckMessage(params: {
+  selectedProject: GitLabProject | null;
+  selectedBranchName: string;
+  latestCommitHash: string;
+}): string | null {
+  if (!params.selectedProject) {
+    return '自动填入前请先选择仓库。';
+  }
+
+  if (params.selectedProject.httpCloneUrl == null || params.selectedProject.httpCloneUrl === '') {
+    return '自动填入前请先拿到仓库 git 链接。';
+  }
+
+  if (params.selectedBranchName === '') {
+    return '自动填入前请先选择分支。';
+  }
+
+  if (params.latestCommitHash === EMPTY_HASH) {
+    return '自动填入前请先拿到最新提交 hash。';
+  }
+
+  return null;
+}
+
 function getMostRecentProjectForBaseUrl(
   projects: GitLabProject[],
   recentProjects: RecentProject[],
@@ -294,17 +318,30 @@ export function App() {
 
   async function handleAutofill() {
     const selectedProject = projects.find((project) => String(project.id) === selectedProjectId) ?? null;
-    if (!selectedProject || selectedBranchName === '' || latestCommitHash === EMPTY_HASH) {
+    const precheckMessage = getAutofillPrecheckMessage({
+      selectedProject,
+      selectedBranchName,
+      latestCommitHash
+    });
+
+    if (precheckMessage) {
+      setAutofillStatusMessage(precheckMessage);
       return;
     }
 
-    const result = await fillReleaseFormInActiveTab({
-      repositoryUrl: selectedProject.httpCloneUrl,
-      branch: selectedBranchName,
-      commitHash: latestCommitHash
-    });
+    setAutofillStatusMessage('正在向页面注入脚本...');
 
-    setAutofillStatusMessage(result.ok ? '已填入 git 链接、分支和 hash' : `自动填入失败：${result.reason}`);
+    try {
+      const result = await fillReleaseFormInActiveTab({
+        repositoryUrl: selectedProject.httpCloneUrl,
+        branch: selectedBranchName,
+        commitHash: latestCommitHash
+      });
+
+      setAutofillStatusMessage(result.ok ? '已填入 git 链接、分支和 hash' : `自动填入失败：${result.reason}`);
+    } catch (error) {
+      setAutofillStatusMessage(`自动填入失败：${getErrorMessage(error)}`);
+    }
   }
 
   const recentProjectIds = new Set(

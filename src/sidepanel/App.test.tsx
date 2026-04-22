@@ -1045,14 +1045,40 @@ describe('side panel app shell', () => {
     ]);
     vi.mocked(chrome.scripting.executeScript).mockResolvedValue([
       {
-        result: { ok: false, reason: '未找到仓库类型下拉框' }
+        result: { ok: false, reason: '定位发布表单字段失败：未找到仓库类型下拉框' }
       } as chrome.scripting.InjectionResult<{ ok: false; reason: string }>
     ]);
 
     await connectApp();
     await userEvent.click(screen.getByRole('button', { name: '一键填入' }));
 
-    expect(await screen.findByText('自动填入失败：未找到仓库类型下拉框')).toBeInTheDocument();
+    expect(await screen.findByText('自动填入失败：定位发布表单字段失败：未找到仓库类型下拉框')).toBeInTheDocument();
+  });
+
+  it('shows a clear message when script injection throws', async () => {
+    mockGitLabConnectSequence({
+      projects: [
+        {
+          id: 1,
+          name: 'Alpha',
+          path_with_namespace: 'group/alpha',
+          web_url: 'https://gitlab.example.com/group/alpha',
+          http_url_to_repo: 'https://gitlab.example.com/group/alpha.git',
+        },
+      ],
+      branchResponses: [[{ name: 'main', commit: { id: 'abcdef123456', committed_date: '2026-03-27T09:30:00Z' } }]],
+    });
+    vi.mocked(chrome.tabs.query).mockResolvedValue([
+      { id: 7, url: 'https://gitlab.example.com/group/alpha/-/tree/main' } as chrome.tabs.Tab,
+    ]);
+    vi.mocked(chrome.scripting.executeScript).mockRejectedValue(new Error('Cannot access contents of the page'));
+
+    await connectApp();
+    await userEvent.click(screen.getByRole('button', { name: '一键填入' }));
+
+    expect(
+      await screen.findByText('自动填入失败：向页面注入脚本时出错：Cannot access contents of the page')
+    ).toBeInTheDocument();
   });
 
   it('clears the autofill status after switching to another project', async () => {

@@ -8,6 +8,10 @@ export type ReleaseFormAutofillResult =
   | { ok: true }
   | { ok: false; reason: string };
 
+function createFieldLookupError(reason: string): ReleaseFormAutofillResult {
+  return { ok: false, reason: `定位发布表单字段失败：${reason}` };
+}
+
 function normalizeText(text: string | null | undefined): string {
   return (text ?? '').replace(/\s+/g, ' ').trim();
 }
@@ -38,22 +42,22 @@ function setSelectValue(select: HTMLSelectElement, value: string) {
 export function autofillReleaseForm(payload: ReleaseFormAutofillPayload): ReleaseFormAutofillResult {
   const repositoryTypeField = findFieldContainer('仓库类型')?.querySelector('select');
   if (!(repositoryTypeField instanceof HTMLSelectElement)) {
-    return { ok: false, reason: '未找到仓库类型下拉框' };
+    return createFieldLookupError('未找到仓库类型下拉框');
   }
 
   const repositoryUrlField = findFieldContainer('svn/git代码路径')?.querySelector('input');
   if (!(repositoryUrlField instanceof HTMLInputElement)) {
-    return { ok: false, reason: '未找到 svn/git代码路径 输入框' };
+    return createFieldLookupError('未找到 svn/git代码路径 输入框');
   }
 
   const branchField = findFieldContainer('git分支')?.querySelector('input');
   if (!(branchField instanceof HTMLInputElement)) {
-    return { ok: false, reason: '未找到 git分支 输入框' };
+    return createFieldLookupError('未找到 git分支 输入框');
   }
 
   const commitHashField = findFieldContainer('svn/git修订号')?.querySelector('input');
   if (!(commitHashField instanceof HTMLInputElement)) {
-    return { ok: false, reason: '未找到 svn/git修订号 输入框' };
+    return createFieldLookupError('未找到 svn/git修订号 输入框');
   }
 
   setSelectValue(repositoryTypeField, 'git');
