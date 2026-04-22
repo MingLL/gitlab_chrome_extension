@@ -33,3 +33,27 @@ export type TaskSystemCredentials = {
   loginName: string;
   loginPwd: string;
 };
+
+export type TaskSystemSession = {
+  token: string;
+};
+
+export type TaskSystemVerificationCode = {
+  uuid: string;
+  realcode: string;
+};
+
+export type TaskSystemTaskQueryBody = {
+  startDeploytime: string;
+  endDeploytime: string;
+  endOnlinedate: string;
+  startOnlinedate: string;
+  actualName: string;
+  filterType: string;
+  pageNum: number;
+  pageSize: number;
+  proposal: string;
+  searchCount: boolean;
+  taskjobid: string;
+  titletype: string;
+};
