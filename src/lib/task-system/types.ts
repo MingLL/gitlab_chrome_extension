@@ -27,3 +27,9 @@ export type TaskSummary = {
   endTime: string;
   completed: boolean;
 };
+
+export type TaskSystemCredentials = {
+  baseUrl: string;
+  loginName: string;
+  loginPwd: string;
+};
