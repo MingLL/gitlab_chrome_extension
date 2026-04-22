@@ -65,6 +65,40 @@
   justify-content: flex-start;
 }
 
+.task-list {
+  display: grid;
+  gap: 10px;
+}
+
+.task-list__item {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d4c6b2;
+  border-radius: 12px;
+  background: #fffdf8;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.task-list__item--selected {
+  border-color: #8b4d2f;
+  box-shadow: 0 0 0 1px rgba(139, 77, 47, 0.2);
+  background: #fbf3e7;
+}
+
+.task-list__title {
+  font-weight: 600;
+}
+
+.task-list__meta {
+  color: #5e544a;
+  font-size: 0.85rem;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
 .field {
   display: grid;
   gap: 6px;

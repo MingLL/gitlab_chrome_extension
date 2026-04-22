@@ -6,10 +6,12 @@ import { loadConfig, requestHostPermission, saveConfig } from '../lib/storage/co
 import { loadProjectUsage, saveProjectUsage, upsertProjectUsage } from '../lib/storage/projectUsageStorage';
 import { loadRecentProjects, saveRecentProjects, upsertRecentProject } from '../lib/storage/recentProjectsStorage';
 import { loadTaskSystemConfig, saveTaskSystemConfig } from '../lib/storage/taskSystemConfigStorage';
+import { createTaskSystemClient } from '../lib/task-system/client';
+import { filterIncompleteTasks } from '../lib/task-system/mappers';
 import { getActiveTabUrl } from '../lib/tabs/currentTab';
 import { fillReleaseFormInActiveTab } from '../lib/tabs/fillReleaseForm';
 import { matchProjectPathFromTab } from '../lib/tabs/projectMatcher';
-import type { GitLabBranch, GitLabConfig, GitLabProject, ProjectUsageRecord, RecentProject } from '../lib/types';
+import type { GitLabBranch, GitLabConfig, GitLabProject, ProjectUsageRecord, RecentProject, TaskSummary } from '../lib/types';
 import { rankBranches } from '../lib/ui/branchSearch';
 import { rankProjects } from '../lib/ui/projectSearch';
 import './app.css';
@@ -17,7 +19,9 @@ import { BranchSelect } from './components/BranchSelect';
 import { ConnectionForm } from './components/ConnectionForm';
 import { ProjectSelect } from './components/ProjectSelect';
 import { ResultSummary } from './components/ResultSummary';
+import { SelectedTaskSummary } from './components/SelectedTaskSummary';
 import type { StatusNoticeTone } from './components/StatusNotice';
+import { TaskList } from './components/TaskList';
 import { TaskSystemForm } from './components/TaskSystemForm';
 
 const EMPTY_HASH = '尚未加载';
@@ -97,6 +101,10 @@ export function App() {
   const [taskSystemLoginName, setTaskSystemLoginName] = useState('');
   const [taskSystemLoginPwd, setTaskSystemLoginPwd] = useState('');
   const [taskSystemStatusMessage, setTaskSystemStatusMessage] = useState<string | null>(null);
+  const [taskSystemStatusTone, setTaskSystemStatusTone] = useState<StatusNoticeTone>('info');
+  const [isRefreshingTasks, setIsRefreshingTasks] = useState(false);
+  const [tasks, setTasks] = useState<TaskSummary[]>([]);
+  const [selectedTask, setSelectedTask] = useState<TaskSummary | null>(null);
   const recentProjectsRef = useRef<RecentProject[]>([]);
   const projectUsageRef = useRef<ProjectUsageRecord[]>([]);
   const hasInitializedTaskSystemConfigRef = useRef(false);
@@ -374,8 +382,42 @@ export function App() {
     }
   }
 
-  function handleTaskRefresh() {
-    setTaskSystemStatusMessage('任务刷新功能将在 Task 5 实现。');
+  async function handleTaskRefresh() {
+    const credentials = {
+      baseUrl: taskSystemBaseUrl.trim(),
+      loginName: taskSystemLoginName.trim(),
+      loginPwd: taskSystemLoginPwd
+    };
+
+    if (credentials.baseUrl === '' || credentials.loginName === '' || credentials.loginPwd.trim() === '') {
+      return;
+    }
+
+    setIsRefreshingTasks(true);
+    setTaskSystemStatusMessage('正在刷新任务...');
+    setTaskSystemStatusTone('info');
+
+    try {
+      await saveTaskSystemConfig(credentials);
+
+      const client = createTaskSystemClient(credentials.baseUrl);
+      const allTasks = await client.loginAndQueryMyDevTasks(credentials);
+      const incompleteTasks = filterIncompleteTasks(allTasks);
+
+      setTasks(incompleteTasks);
+      setSelectedTask(incompleteTasks[0] ?? null);
+      setTaskSystemStatusMessage(
+        incompleteTasks.length === 0 ? '当前没有未完成的开发任务。' : `已刷新 ${incompleteTasks.length} 条未完成任务。`
+      );
+      setTaskSystemStatusTone(incompleteTasks.length === 0 ? 'warning' : 'info');
+    } catch (error) {
+      setTasks([]);
+      setSelectedTask(null);
+      setTaskSystemStatusMessage(`刷新任务失败：${getErrorMessage(error)}`);
+      setTaskSystemStatusTone('error');
+    } finally {
+      setIsRefreshingTasks(false);
+    }
   }
 
   const recentProjectIds = new Set(
@@ -446,7 +488,7 @@ export function App() {
   const isAutofillDisabled =
     selectedProject?.httpCloneUrl == null || selectedProject.httpCloneUrl === '' || selectedBranchName === '' || latestCommitHash === EMPTY_HASH;
   const isTaskRefreshDisabled =
-    taskSystemBaseUrl.trim() === '' || taskSystemLoginName.trim() === '' || taskSystemLoginPwd.trim() === '';
+    isRefreshingTasks || taskSystemBaseUrl.trim() === '' || taskSystemLoginName.trim() === '' || taskSystemLoginPwd.trim() === '';
 
   return (
     <main className="sidepanel">
@@ -476,9 +518,14 @@ export function App() {
           onBaseUrlChange={setTaskSystemBaseUrl}
           onLoginNameChange={setTaskSystemLoginName}
           onLoginPwdChange={setTaskSystemLoginPwd}
-          onRefresh={handleTaskRefresh}
+          onRefresh={() => {
+            void handleTaskRefresh();
+          }}
           statusMessage={taskSystemStatusMessage}
+          statusTone={taskSystemStatusTone}
         />
+        {tasks.length > 0 ? <TaskList tasks={tasks} selectedTaskId={selectedTask?.id ?? null} onSelect={setSelectedTask} /> : null}
+        {tasks.length > 0 || selectedTask ? <SelectedTaskSummary task={selectedTask} /> : null}
         <ProjectSelect
           projects={rankedProjects}
           value={selectedProjectId}
