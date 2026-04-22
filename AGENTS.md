@@ -178,6 +178,30 @@ Why:
 - build(vite): 调整生产环境 sourcemap 输出策略
 - chore(deps): 升级 axios 到 1.9 版本
 
+## PR title policy
+
+Pull request titles must be created according to the actual changes included in the PR.
+
+Rules:
+- do not use generic titles that only describe intent, process, or temporary status
+- summarize the real user-facing or code-facing change in the PR title
+- if the PR contains one logical change, the title should match that change directly
+- if the PR contains multiple tightly related changes, the title should reflect their shared theme
+- if the branch name, temporary task note, or tool-generated text does not accurately describe the diff, rewrite the PR title before creating or merging the PR
+- prefer concise and specific wording so reviewers can understand the purpose from the PR list view
+
+Good titles:
+- 增加发布表单自动填入诊断提示
+- 修复 release-please 未同步 manifest 版本号
+- 补充扩展 zip 与 crx 打包说明
+
+Bad titles:
+- 更新代码
+- 修复问题
+- codex work
+- 临时 PR
+- again
+
 ## Current recommended commit message
 
 Commit message:
