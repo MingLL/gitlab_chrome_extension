@@ -31,3 +31,5 @@ export type GitLabBranch = {
   commitId: string;
   committedDate: string;
 };
+
+export type { TaskSummary } from './task-system/types';
