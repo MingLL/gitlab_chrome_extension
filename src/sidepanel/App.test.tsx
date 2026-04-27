@@ -738,6 +738,31 @@ describe('side panel app shell', () => {
     expect(Array.from((await findBranchSelect()).options).map((option) => option.text)).toEqual(['release/1.2.0']);
   });
 
+  it('preselects the branch with the latest commit after loading branches', async () => {
+    mockGitLabConnectSequence({
+      projects: [
+        {
+          id: 1,
+          name: 'Alpha',
+          path_with_namespace: 'group/alpha',
+          web_url: 'https://gitlab.example.com/group/alpha',
+        }
+      ],
+      branchResponses: [[
+        { name: 'feature/old', commit: { id: 'aaa111', committed_date: '2026-03-24T10:00:00Z' } },
+        { name: 'release/new', commit: { id: 'ccc333', committed_date: '2026-03-27T09:00:00Z' } }
+      ]],
+    });
+    vi.mocked(chrome.tabs.query).mockResolvedValue([
+      { url: 'https://gitlab.example.com/group/alpha/-/tree/main' } as chrome.tabs.Tab,
+    ]);
+
+    await connectApp();
+
+    await expectSelectedBranch('release/new');
+    expect(screen.getByText('ccc333')).toBeInTheDocument();
+  });
+
   it('keeps the existing loaded state when a later connect attempt fails', async () => {
     vi.spyOn(configStorage, 'requestHostPermission')
       .mockResolvedValueOnce(undefined)

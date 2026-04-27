@@ -76,6 +76,10 @@ function getMostRecentProjectForBaseUrl(
   return null;
 }
 
+function getDefaultBranch(branches: GitLabBranch[]): GitLabBranch | null {
+  return rankBranches(branches, '')[0] ?? null;
+}
+
 export function App() {
   const [baseUrl, setBaseUrl] = useState('');
   const [token, setToken] = useState('');
@@ -178,7 +182,7 @@ export function App() {
     try {
       const client = createGitLabClient(config.baseUrl, config.token);
       const nextBranches = await client.fetchBranches(project.id);
-      const initialBranch = nextBranches[0] ?? null;
+      const initialBranch = getDefaultBranch(nextBranches);
 
       setSelectedProjectId(String(project.id));
       setBranches(nextBranches);
@@ -267,7 +271,7 @@ export function App() {
           setIsLoadingBranches(false);
         }
 
-        const initialBranch = nextBranches[0] ?? null;
+        const initialBranch = getDefaultBranch(nextBranches);
         nextSelectedProjectId = String(defaultProject.id);
         nextSelectedBranchName = initialBranch?.name ?? '';
         nextLatestCommitHash = initialBranch?.commitId ?? EMPTY_HASH;
