@@ -5,10 +5,13 @@ import { normalizeBaseUrl } from '../lib/gitlab/normalizeBaseUrl';
 import { loadConfig, requestHostPermission, saveConfig } from '../lib/storage/configStorage';
 import { loadProjectUsage, saveProjectUsage, upsertProjectUsage } from '../lib/storage/projectUsageStorage';
 import { loadRecentProjects, saveRecentProjects, upsertRecentProject } from '../lib/storage/recentProjectsStorage';
+import { loadTaskSystemConfig, saveTaskSystemConfig } from '../lib/storage/taskSystemConfigStorage';
+import { createTaskSystemClient } from '../lib/task-system/client';
+import { filterIncompleteTasks } from '../lib/task-system/mappers';
 import { getActiveTabUrl } from '../lib/tabs/currentTab';
 import { fillReleaseFormInActiveTab } from '../lib/tabs/fillReleaseForm';
 import { matchProjectPathFromTab } from '../lib/tabs/projectMatcher';
-import type { GitLabBranch, GitLabConfig, GitLabProject, ProjectUsageRecord, RecentProject } from '../lib/types';
+import type { GitLabBranch, GitLabConfig, GitLabProject, ProjectUsageRecord, RecentProject, TaskSummary } from '../lib/types';
 import { rankBranches } from '../lib/ui/branchSearch';
 import { rankProjects } from '../lib/ui/projectSearch';
 import './app.css';
@@ -16,7 +19,10 @@ import { BranchSelect } from './components/BranchSelect';
 import { ConnectionForm } from './components/ConnectionForm';
 import { ProjectSelect } from './components/ProjectSelect';
 import { ResultSummary } from './components/ResultSummary';
+import { SelectedTaskSummary } from './components/SelectedTaskSummary';
 import type { StatusNoticeTone } from './components/StatusNotice';
+import { TaskList } from './components/TaskList';
+import { TaskSystemForm } from './components/TaskSystemForm';
 
 const EMPTY_HASH = '尚未加载';
 const NOT_CONFIGURED_MESSAGE = '尚未配置，请输入 GitLab 地址和 Token 后连接。';
@@ -70,6 +76,10 @@ function getMostRecentProjectForBaseUrl(
   return null;
 }
 
+function getDefaultBranch(branches: GitLabBranch[]): GitLabBranch | null {
+  return rankBranches(branches, '')[0] ?? null;
+}
+
 export function App() {
   const [baseUrl, setBaseUrl] = useState('');
   const [token, setToken] = useState('');
@@ -91,18 +101,28 @@ export function App() {
   const [projectQuery, setProjectQuery] = useState('');
   const [branchQuery, setBranchQuery] = useState('');
   const [autofillStatusMessage, setAutofillStatusMessage] = useState<string | null>(null);
+  const [taskSystemBaseUrl, setTaskSystemBaseUrl] = useState('');
+  const [taskSystemLoginName, setTaskSystemLoginName] = useState('');
+  const [taskSystemLoginPwd, setTaskSystemLoginPwd] = useState('');
+  const [taskSystemStatusMessage, setTaskSystemStatusMessage] = useState<string | null>(null);
+  const [taskSystemStatusTone, setTaskSystemStatusTone] = useState<StatusNoticeTone>('info');
+  const [isRefreshingTasks, setIsRefreshingTasks] = useState(false);
+  const [tasks, setTasks] = useState<TaskSummary[]>([]);
+  const [selectedTask, setSelectedTask] = useState<TaskSummary | null>(null);
   const recentProjectsRef = useRef<RecentProject[]>([]);
   const projectUsageRef = useRef<ProjectUsageRecord[]>([]);
+  const hasInitializedTaskSystemConfigRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function initialize() {
       try {
-        const [storedConfig, storedRecentProjects, storedProjectUsage] = await Promise.all([
+        const [storedConfig, storedRecentProjects, storedProjectUsage, storedTaskSystemConfig] = await Promise.all([
           loadConfig(),
           loadRecentProjects(),
-          loadProjectUsage()
+          loadProjectUsage(),
+          loadTaskSystemConfig()
         ]);
 
         if (cancelled) {
@@ -113,6 +133,12 @@ export function App() {
           setBaseUrl(storedConfig.baseUrl);
           setToken(storedConfig.token);
           setConnectedConfig(storedConfig);
+        }
+
+        if (storedTaskSystemConfig) {
+          setTaskSystemBaseUrl(storedTaskSystemConfig.baseUrl);
+          setTaskSystemLoginName(storedTaskSystemConfig.loginName);
+          setTaskSystemLoginPwd(storedTaskSystemConfig.loginPwd);
         }
 
         recentProjectsRef.current = storedRecentProjects;
@@ -133,6 +159,22 @@ export function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!hasInitializedTaskSystemConfigRef.current) {
+      return;
+    }
+
+    void saveTaskSystemConfig({
+      baseUrl: taskSystemBaseUrl,
+      loginName: taskSystemLoginName,
+      loginPwd: taskSystemLoginPwd
+    });
+  }, [taskSystemBaseUrl, taskSystemLoginName, taskSystemLoginPwd]);
+
+  useEffect(() => {
+    hasInitializedTaskSystemConfigRef.current = true;
+  }, []);
+
   async function loadBranchesForProject(project: GitLabProject, config: GitLabConfig, persistRecent: boolean) {
     setBranchErrorMessage(null);
     setIsLoadingBranches(true);
@@ -140,7 +182,7 @@ export function App() {
     try {
       const client = createGitLabClient(config.baseUrl, config.token);
       const nextBranches = await client.fetchBranches(project.id);
-      const initialBranch = nextBranches[0] ?? null;
+      const initialBranch = getDefaultBranch(nextBranches);
 
       setSelectedProjectId(String(project.id));
       setBranches(nextBranches);
@@ -229,7 +271,7 @@ export function App() {
           setIsLoadingBranches(false);
         }
 
-        const initialBranch = nextBranches[0] ?? null;
+        const initialBranch = getDefaultBranch(nextBranches);
         nextSelectedProjectId = String(defaultProject.id);
         nextSelectedBranchName = initialBranch?.name ?? '';
         nextLatestCommitHash = initialBranch?.commitId ?? EMPTY_HASH;
@@ -344,6 +386,44 @@ export function App() {
     }
   }
 
+  async function handleTaskRefresh() {
+    const credentials = {
+      baseUrl: taskSystemBaseUrl.trim(),
+      loginName: taskSystemLoginName.trim(),
+      loginPwd: taskSystemLoginPwd
+    };
+
+    if (credentials.baseUrl === '' || credentials.loginName === '' || credentials.loginPwd.trim() === '') {
+      return;
+    }
+
+    setIsRefreshingTasks(true);
+    setTaskSystemStatusMessage('正在刷新任务...');
+    setTaskSystemStatusTone('info');
+
+    try {
+      await saveTaskSystemConfig(credentials);
+
+      const client = createTaskSystemClient(credentials.baseUrl);
+      const allTasks = await client.loginAndQueryMyDevTasks(credentials);
+      const incompleteTasks = filterIncompleteTasks(allTasks);
+
+      setTasks(incompleteTasks);
+      setSelectedTask(incompleteTasks[0] ?? null);
+      setTaskSystemStatusMessage(
+        incompleteTasks.length === 0 ? '当前没有未完成的开发任务。' : `已刷新 ${incompleteTasks.length} 条未完成任务。`
+      );
+      setTaskSystemStatusTone(incompleteTasks.length === 0 ? 'warning' : 'info');
+    } catch (error) {
+      setTasks([]);
+      setSelectedTask(null);
+      setTaskSystemStatusMessage(`刷新任务失败：${getErrorMessage(error)}`);
+      setTaskSystemStatusTone('error');
+    } finally {
+      setIsRefreshingTasks(false);
+    }
+  }
+
   const recentProjectIds = new Set(
     recentProjects
       .filter((project) => project.gitlabBaseUrl === (connectedConfig?.baseUrl ?? ''))
@@ -411,6 +491,8 @@ export function App() {
   const selectedProject = projects.find((project) => String(project.id) === selectedProjectId) ?? null;
   const isAutofillDisabled =
     selectedProject?.httpCloneUrl == null || selectedProject.httpCloneUrl === '' || selectedBranchName === '' || latestCommitHash === EMPTY_HASH;
+  const isTaskRefreshDisabled =
+    isRefreshingTasks || taskSystemBaseUrl.trim() === '' || taskSystemLoginName.trim() === '' || taskSystemLoginPwd.trim() === '';
 
   return (
     <main className="sidepanel">
@@ -432,6 +514,22 @@ export function App() {
           statusMessage={connectionStatusMessage}
           statusTone={connectionStatusTone}
         />
+        <TaskSystemForm
+          baseUrl={taskSystemBaseUrl}
+          loginName={taskSystemLoginName}
+          loginPwd={taskSystemLoginPwd}
+          isRefreshDisabled={isTaskRefreshDisabled}
+          onBaseUrlChange={setTaskSystemBaseUrl}
+          onLoginNameChange={setTaskSystemLoginName}
+          onLoginPwdChange={setTaskSystemLoginPwd}
+          onRefresh={() => {
+            void handleTaskRefresh();
+          }}
+          statusMessage={taskSystemStatusMessage}
+          statusTone={taskSystemStatusTone}
+        />
+        {tasks.length > 0 ? <TaskList tasks={tasks} selectedTaskId={selectedTask?.id ?? null} onSelect={setSelectedTask} /> : null}
+        {tasks.length > 0 || selectedTask ? <SelectedTaskSummary task={selectedTask} /> : null}
         <ProjectSelect
           projects={rankedProjects}
           value={selectedProjectId}

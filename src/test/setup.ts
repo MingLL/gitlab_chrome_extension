@@ -2,6 +2,9 @@ import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
 
 vi.stubGlobal('chrome', {
+  cookies: {
+    set: vi.fn().mockResolvedValue(undefined)
+  },
   storage: {
     local: {
       get: vi.fn().mockResolvedValue({}),

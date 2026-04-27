@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import manifest from '../../manifest.config';
@@ -8,6 +8,9 @@ import { loadConfig, requestHostPermission, saveConfig } from '../lib/storage/co
 import * as recentProjectsStorage from '../lib/storage/recentProjectsStorage';
 import * as projectUsageStorage from '../lib/storage/projectUsageStorage';
 import { loadRecentProjects, saveRecentProjects } from '../lib/storage/recentProjectsStorage';
+import * as taskSystemConfigStorage from '../lib/storage/taskSystemConfigStorage';
+import * as taskSystemClient from '../lib/task-system/client';
+import type { TaskSummary } from '../lib/types';
 import { App } from './App';
 
 function createDeferred<T>() {
@@ -118,6 +121,23 @@ async function connectApp(input?: {
   await userEvent.click(screen.getByRole('button', { name: '连接' }));
 
   await findProjectSelect();
+}
+
+function createTaskSummary(input: Partial<TaskSummary> & Pick<TaskSummary, 'id'>): TaskSummary {
+  return {
+    id: input.id,
+    proposalId: input.proposalId ?? `proposal-${input.id}`,
+    proposalName: input.proposalName ?? `Task ${input.id}`,
+    proposalType: input.proposalType ?? 'normal',
+    proposalStatusDetail: input.proposalStatusDetail ?? '开发中',
+    system: input.system ?? 'crm',
+    env: input.env ?? 'prod',
+    taskJobId: input.taskJobId ?? `JOB-${input.id}`,
+    testManager: input.testManager ?? 'alice',
+    startTime: input.startTime ?? '2026-04-22 10:00:00',
+    endTime: input.endTime ?? '2026-04-22 18:00:00',
+    completed: input.completed ?? false
+  };
 }
 
 afterEach(() => {
@@ -234,6 +254,8 @@ describe('side panel app shell', () => {
     vi.spyOn(recentProjectsStorage, 'saveRecentProjects').mockResolvedValue(undefined);
     vi.spyOn(projectUsageStorage, 'loadProjectUsage').mockResolvedValue([]);
     vi.spyOn(projectUsageStorage, 'saveProjectUsage').mockResolvedValue(undefined);
+    vi.spyOn(taskSystemConfigStorage, 'loadTaskSystemConfig').mockResolvedValue(null);
+    vi.spyOn(taskSystemConfigStorage, 'saveTaskSystemConfig').mockResolvedValue(undefined);
     vi.mocked(chrome.tabs.query).mockResolvedValue([]);
     vi.stubGlobal('navigator', {
       ...window.navigator,
@@ -248,11 +270,132 @@ describe('side panel app shell', () => {
 
     expect(screen.getByLabelText(/gitlab 地址/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/token/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('任务系统地址')).toBeInTheDocument();
+    expect(screen.getByLabelText('登录账号')).toBeInTheDocument();
+    expect(screen.getByLabelText('登录密码')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '刷新任务' })).toBeDisabled();
     expect(screen.getByRole('heading', { name: '仓库' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '分支' })).toBeInTheDocument();
     expect(screen.getByText('Hash 信息')).toBeInTheDocument();
     expect(screen.getByText('尚未配置，请输入 GitLab 地址和 Token 后连接。')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '一键填入' })).toBeDisabled();
+  });
+
+  it('loads saved task system config during initialization', async () => {
+    vi.mocked(taskSystemConfigStorage.loadTaskSystemConfig).mockResolvedValueOnce({
+      baseUrl: 'http://10.254.239.10:10086',
+      loginName: 'liminglei',
+      loginPwd: 'secret',
+    });
+
+    render(<App />);
+
+    expect(await screen.findByDisplayValue('http://10.254.239.10:10086')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('liminglei')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('secret')).toBeInTheDocument();
+  });
+
+  it('persists task system config edits from the form', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.type(screen.getByLabelText('任务系统地址'), 'http://10.254.239.10:10086');
+    await user.type(screen.getByLabelText('登录账号'), 'liminglei');
+    await user.type(screen.getByLabelText('登录密码'), 'secret');
+
+    expect(taskSystemConfigStorage.saveTaskSystemConfig).toHaveBeenLastCalledWith({
+      baseUrl: 'http://10.254.239.10:10086',
+      loginName: 'liminglei',
+      loginPwd: 'secret',
+    });
+  });
+
+  it('refreshes task-system tasks, filters completed ones, and renders the selected task summary', async () => {
+    const user = userEvent.setup();
+    const loginAndQueryMyDevTasks = vi.fn().mockResolvedValue([
+      createTaskSummary({ id: '1', proposalName: '提案 A', taskJobId: 'JOB-1001', env: 'fat', system: 'oms', completed: false }),
+      createTaskSummary({ id: '2', proposalName: '提案 B', taskJobId: 'JOB-1002', env: 'prod', system: 'crm', completed: true }),
+      createTaskSummary({ id: '3', proposalName: '提案 C', taskJobId: 'JOB-1003', env: 'uat', system: 'wms', completed: false })
+    ]);
+    vi.spyOn(taskSystemClient, 'createTaskSystemClient').mockReturnValue({
+      login: vi.fn(),
+      queryMyDevTasks: vi.fn(),
+      loginAndQueryMyDevTasks
+    });
+    render(<App />);
+
+    await user.type(screen.getByLabelText('任务系统地址'), 'http://10.254.239.10:10086');
+    await user.type(screen.getByLabelText('登录账号'), 'liminglei');
+    await user.type(screen.getByLabelText('登录密码'), 'secret');
+    await user.click(screen.getByRole('button', { name: '刷新任务' }));
+
+    expect(taskSystemConfigStorage.saveTaskSystemConfig).toHaveBeenLastCalledWith({
+      baseUrl: 'http://10.254.239.10:10086',
+      loginName: 'liminglei',
+      loginPwd: 'secret'
+    });
+    expect(taskSystemClient.createTaskSystemClient).toHaveBeenCalledWith('http://10.254.239.10:10086');
+    expect(loginAndQueryMyDevTasks).toHaveBeenCalledWith({
+      baseUrl: 'http://10.254.239.10:10086',
+      loginName: 'liminglei',
+      loginPwd: 'secret'
+    });
+    expect(await screen.findByRole('heading', { name: '待办任务' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '提案 A' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '提案 C' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '提案 B' })).not.toBeInTheDocument();
+    const selectedTaskSummary = screen.getByRole('region', { name: '当前任务' });
+    expect(within(selectedTaskSummary).getByText('JOB-1001')).toBeInTheDocument();
+    expect(within(selectedTaskSummary).getByText('fat')).toBeInTheDocument();
+    expect(within(selectedTaskSummary).getByText('oms')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '提案 C' }));
+
+    expect(within(selectedTaskSummary).getByText('JOB-1003')).toBeInTheDocument();
+    expect(within(selectedTaskSummary).getByText('uat')).toBeInTheDocument();
+    expect(within(selectedTaskSummary).getByText('wms')).toBeInTheDocument();
+  });
+
+  it('shows an empty state when the refreshed task list has no incomplete tasks', async () => {
+    const user = userEvent.setup();
+    const loginAndQueryMyDevTasks = vi.fn().mockResolvedValue([
+      createTaskSummary({ id: '1', proposalName: '已完成提案', completed: true })
+    ]);
+    vi.spyOn(taskSystemClient, 'createTaskSystemClient').mockReturnValue({
+      login: vi.fn(),
+      queryMyDevTasks: vi.fn(),
+      loginAndQueryMyDevTasks
+    });
+
+    render(<App />);
+
+    await user.type(screen.getByLabelText('任务系统地址'), 'http://10.254.239.10:10086');
+    await user.type(screen.getByLabelText('登录账号'), 'liminglei');
+    await user.type(screen.getByLabelText('登录密码'), 'secret');
+    await user.click(screen.getByRole('button', { name: '刷新任务' }));
+
+    expect(await screen.findByText('当前没有未完成的开发任务。')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '已完成提案' })).not.toBeInTheDocument();
+  });
+
+  it('shows an error state when refreshing task-system tasks fails', async () => {
+    const user = userEvent.setup();
+    const loginAndQueryMyDevTasks = vi.fn().mockRejectedValue(new Error('任务系统登录失败'));
+    vi.spyOn(taskSystemClient, 'createTaskSystemClient').mockReturnValue({
+      login: vi.fn(),
+      queryMyDevTasks: vi.fn(),
+      loginAndQueryMyDevTasks
+    });
+
+    render(<App />);
+
+    await user.type(screen.getByLabelText('任务系统地址'), 'http://10.254.239.10:10086');
+    await user.type(screen.getByLabelText('登录账号'), 'liminglei');
+    await user.type(screen.getByLabelText('登录密码'), 'secret');
+    await user.click(screen.getByRole('button', { name: '刷新任务' }));
+
+    expect(await screen.findByText('刷新任务失败：任务系统登录失败')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '待办任务' })).not.toBeInTheDocument();
   });
 
   it('shows connecting and loading-project status messages while a connection is in flight', async () => {
@@ -593,6 +736,31 @@ describe('side panel app shell', () => {
 
     expect(await findBranchSelect()).toHaveValue('release/1.2.0');
     expect(Array.from((await findBranchSelect()).options).map((option) => option.text)).toEqual(['release/1.2.0']);
+  });
+
+  it('preselects the branch with the latest commit after loading branches', async () => {
+    mockGitLabConnectSequence({
+      projects: [
+        {
+          id: 1,
+          name: 'Alpha',
+          path_with_namespace: 'group/alpha',
+          web_url: 'https://gitlab.example.com/group/alpha',
+        }
+      ],
+      branchResponses: [[
+        { name: 'feature/old', commit: { id: 'aaa111', committed_date: '2026-03-24T10:00:00Z' } },
+        { name: 'release/new', commit: { id: 'ccc333', committed_date: '2026-03-27T09:00:00Z' } }
+      ]],
+    });
+    vi.mocked(chrome.tabs.query).mockResolvedValue([
+      { url: 'https://gitlab.example.com/group/alpha/-/tree/main' } as chrome.tabs.Tab,
+    ]);
+
+    await connectApp();
+
+    await expectSelectedBranch('release/new');
+    expect(screen.getByText('ccc333')).toBeInTheDocument();
   });
 
   it('keeps the existing loaded state when a later connect attempt fails', async () => {
